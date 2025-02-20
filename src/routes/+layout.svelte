@@ -31,7 +31,7 @@
 <nav class="bg-gray-800 p-4">
   <div class="container mx-auto flex justify-between items-center">
     <div class="text-white text-lg font-bold">
-      <a href="/">MyApp</a>
+      <a href="/">WtManagement</a>
     </div>
     {#if currentUser}
       <div class="space-x-4 flex items-center">

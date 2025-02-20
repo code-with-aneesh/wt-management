@@ -11,19 +11,25 @@
     } from "firebase/firestore";
     import Chart from "chart.js/auto";
     import { onAuthStateChanged } from "firebase/auth";
+    import { goto } from "$app/navigation";
 
     let weight: number;
     let weights: { weight: number; timestamp: any }[] = [];
     let chartInstance: Chart | null = null;
     let currentUser: any = null;
 
-    onAuthStateChanged(auth, (user) => {
-        if (user) {
-            currentUser = user;
-            fetchWeights();
-        } else {
-            currentUser = null;
-        }
+    onMount(() => {
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                currentUser = user;
+                fetchWeights();
+            } else {
+                currentUser = null;
+                if (typeof window !== "undefined") {
+                    goto("/");
+                }
+            }
+        });
     });
 
     async function addWeight() {
@@ -97,12 +103,6 @@
             console.error("Canvas element not found"); // Debugging line
         }
     }
-
-    onMount(() => {
-        if (currentUser) {
-            fetchWeights();
-        }
-    });
 </script>
 
 <main class="container">
