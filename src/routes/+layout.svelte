@@ -6,6 +6,7 @@
   import { onDestroy } from "svelte";
 
   let currentUser: { displayName: string; photoURL: string } | null = null;
+  let menuOpen = false;
 
   const unsubscribe = user.subscribe((u) => {
     if (u) {
@@ -26,15 +27,41 @@
     firebaseLogout();
     goto("/");
   }
+
+  function toggleMenu() {
+    menuOpen = !menuOpen;
+  }
 </script>
 
 <nav class="bg-gray-800 p-4">
-  <div class="container mx-auto flex justify-between items-center">
+  <div class="container mx-auto flex justify-between items-center flex-wrap">
     <div class="text-white text-lg font-bold">
       <a href="/">WtManagement</a>
     </div>
-    {#if currentUser}
-      <div class="space-x-4 flex items-center">
+    <button
+      class="text-white sm:hidden"
+      on:click={toggleMenu}
+      aria-label="Toggle menu"
+    >
+      <svg
+        class="w-6 h-6"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M4 6h16M4 12h16m-7 6h7"
+        ></path>
+      </svg>
+    </button>
+    <div
+      class={`space-x-4 flex items-center mt-2 sm:mt-0 ${menuOpen ? "block" : "hidden"} sm:flex`}
+    >
+      {#if currentUser}
         <a href="/" class="text-gray-300 hover:text-white">Home</a>
         <a href="/dashboard" class="text-gray-300 hover:text-white">Dashboard</a
         >
@@ -45,18 +72,32 @@
           alt={currentUser.displayName}
           class="inline-block w-8 h-8 rounded-full ml-2"
         />
-
         <button
           type="button"
           class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800"
           on:click={logout}
           aria-label="Logout">Logout</button
         >
-      </div>
-    {/if}
+      {/if}
+    </div>
   </div>
 </nav>
 
-<main class="container mx-auto mt-4">
+<main class="container mx-auto mt-4 px-4">
   <slot></slot>
 </main>
+
+<style>
+  @media (max-width: 640px) {
+    nav .container {
+      flex-direction: row;
+      align-items: flex-start;
+    }
+    nav .space-x-4 {
+      flex-direction: row;
+      align-items: flex-start;
+      margin-right: 0;
+      margin-bottom: 1rem;
+    }
+  }
+</style>
