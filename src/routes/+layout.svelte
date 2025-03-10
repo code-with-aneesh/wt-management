@@ -62,22 +62,20 @@
       class={`space-x-4 flex items-center mt-2 sm:mt-0 ${menuOpen ? "block" : "hidden"} sm:flex`}
     >
       {#if currentUser}
-        <a href="/" class="text-gray-300 hover:text-white">Home</a>
-        <a href="/dashboard" class="text-gray-300 hover:text-white">Dashboard</a
-        >
+        <a href="/bmi" class="text-gray-300 hover:text-white">bmi</a>
+        <a href="/dashboard" class="text-gray-300 hover:text-white">Dashboard</a>
         <a href="/about" class="text-gray-300 hover:text-white">About</a>
-        <span class="text-gray-300">{currentUser.displayName}</span>
+        <span class="text-gray-300 hidden sm:inline">{currentUser.displayName}</span>
         <img
           src={currentUser.photoURL}
           alt={currentUser.displayName}
-          class="inline-block w-8 h-8 rounded-full ml-2"
+          class="inline-block w-8 h-8 rounded-full ml-2 hidden sm:inline"
         />
         <button
           type="button"
           class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800"
           on:click={logout}
-          aria-label="Logout">Logout</button
-        >
+          aria-label="Logout">Logout</button>
       {/if}
     </div>
   </div>
@@ -90,11 +88,11 @@
 <style>
   @media (max-width: 640px) {
     nav .container {
-      flex-direction: row;
+      flex-direction: column;
       align-items: flex-start;
     }
     nav .space-x-4 {
-      flex-direction: row;
+      flex-direction: column;
       align-items: flex-start;
       margin-right: 0;
       margin-bottom: 1rem;
