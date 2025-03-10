@@ -1,13 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { db } from "$lib/firebase";
-  import {
-    collection,
-    query,
-    orderBy,
-    limit,
-    getDocs,
-  } from "firebase/firestore";
+  import { collection, query, orderBy, limit, getDocs } from "firebase/firestore";
 
   let lastWeight: number | null = null;
   let height: number = 1.8;
@@ -123,10 +117,18 @@
 
   .container {
     display: flex;
+    flex-direction: column;
     gap: 2rem;
     max-width: 800px;
     width: 100%;
     padding: 1rem;
+    margin: 0 auto;
+  }
+
+  @media (min-width: 768px) {
+    .container {
+      flex-direction: row;
+    }
   }
 
   .card {
