@@ -177,56 +177,154 @@
 
 <main class="container">
   <h1>Weight and Height Management</h1>
-  <div class="card">
-    <h2>Weight</h2>
-    <form on:submit|preventDefault={addWeight}>
-      <label for="weight">Enter your weight:</label>
-      <input type="number" id="weight" bind:value={weight} required />
-      <button type="submit">Add Weight</button>
-    </form>
-    <canvas id="weightChart"></canvas>
-  </div>
-  <div class="card">
-    <h2>Height</h2>
-    <form on:submit|preventDefault={addHeight}>
-      <label for="height">Enter your height:</label>
-      <input type="number" id="height" bind:value={height} step="0.01" required />
-      <button type="submit">Add Height</button>
-    </form>
-    <canvas id="heightChart"></canvas>
+  <div class="cards">
+    <div class="card">
+      <h2>Weight</h2>
+      <form on:submit|preventDefault={addWeight}>
+        <label for="weight">Enter your weight:</label>
+        <input type="number" id="weight" bind:value={weight} required />
+        <button type="submit">Add Weight</button>
+      </form>
+      <div class="chart-container">
+        <canvas id="weightChart"></canvas>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Height</h2>
+      <form on:submit|preventDefault={addHeight}>
+        <label for="height">Enter your height:</label>
+        <input type="number" id="height" bind:value={height} step="0.01" required />
+        <button type="submit">Add Height</button>
+      </form>
+      <div class="chart-container">
+        <canvas id="heightChart"></canvas>
+      </div>
+    </div>
   </div>
 </main>
-
 <style>
+  /* Base styles */
   .container {
     text-align: center;
-    margin: 50px auto;
+    margin: 20px auto;
+    padding: 10px;
+    max-width: 1200px;
   }
+
+  h1 {
+    font-size: 2rem;
+    margin-bottom: 20px;
+  }
+
+  .cards {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    justify-content: center;
+  }
+
   .card {
-    display: inline-block;
-    width: 45%;
-    margin: 10px;
+    flex: 1 1 100%;
+    max-width: 500px;
     padding: 20px;
     border: 1px solid #ddd;
     border-radius: 10px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    background: #fff;
   }
+
   form {
     margin-bottom: 20px;
   }
-  input {
-    margin-right: 10px;
+
+  label {
+    display: block;
+    margin-bottom: 10px;
+    font-size: 1rem;
   }
+
+  input {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 10px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 1rem;
+  }
+
   button {
-    padding: 5px 10px;
+    width: 100%;
+    padding: 10px;
     background: #4285f4;
     color: white;
     border: none;
-    cursor: pointer;
     border-radius: 5px;
-    font-size: 14px;
+    font-size: 1rem;
+    cursor: pointer;
   }
+
   button:hover {
     background: #357ae8;
+  }
+
+  .chart-container {
+    width: 100%;
+    height: 300px; /* Fixed height for charts */
+    position: relative;
+  }
+
+  canvas {
+    width: 100% !important;
+    height: 100% !important;
+  }
+
+  /* Media queries for smaller screens */
+  @media (max-width: 768px) {
+    h1 {
+      font-size: 1.5rem;
+    }
+
+    .card {
+      flex: 1 1 100%;
+      max-width: 100%;
+    }
+
+    input {
+      font-size: 0.9rem;
+    }
+
+    button {
+      font-size: 0.9rem;
+    }
+
+    .chart-container {
+      height: 200px; /* Smaller height for charts on mobile */
+    }
+  }
+
+  @media (max-width: 480px) {
+    h1 {
+      font-size: 1.2rem;
+    }
+
+    .card {
+      padding: 15px;
+    }
+
+    label {
+      font-size: 0.9rem;
+    }
+
+    input {
+      font-size: 0.8rem;
+    }
+
+    button {
+      font-size: 0.8rem;
+    }
+
+    .chart-container {
+      height: 150px; /* Even smaller height for very small screens */
+    }
   }
 </style>
