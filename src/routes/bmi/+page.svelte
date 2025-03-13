@@ -4,30 +4,47 @@
   import { collection, query, orderBy, limit, getDocs } from "firebase/firestore";
 
   let lastWeight: number | null = null;
-  let height: number = 1.8;
+  let lastHeight: number | null = null;
   let bmi: number | null = null;
   let bmiCategory: string = "Loading...";
   let bmiPosition: number = 0; // Position on scale (0-100)
-  let bmiPercentage: number = 0; // Percentage for radial progress bar
+  let healthyWeightRange: { min: number; max: number } | null = null; // Healthy weight range
 
   onMount(async () => {
-    const q = query(
+    // Fetch last weight
+    const weightQuery = query(
       collection(db, "weights"),
       orderBy("timestamp", "desc"),
       limit(1)
     );
-    const querySnapshot = await getDocs(q);
-
-    querySnapshot.forEach((doc) => {
+    const weightSnapshot = await getDocs(weightQuery);
+    weightSnapshot.forEach((doc) => {
       const data = doc.data();
       lastWeight = data.weight;
     });
+
+    // Fetch last height
+    const heightQuery = query(
+      collection(db, "heights"),
+      orderBy("timestamp", "desc"),
+      limit(1)
+    );
+    const heightSnapshot = await getDocs(heightQuery);
+    heightSnapshot.forEach((doc) => {
+      const data = doc.data();
+      lastHeight = data.height;
+    });
+
+    // Calculate BMI and healthy weight range if both weight and height are available
+    if (lastWeight !== null && lastHeight !== null) {
+      calculateBMI(lastWeight, lastHeight);
+      calculateHealthyWeightRange(lastHeight);
+    }
   });
 
-  // Reactive BMI Calculation
-  $: if (lastWeight !== null) {
-    bmi = lastWeight / (height * height);
-    bmiPercentage = Math.min((bmi / 40) * 100, 100); // Cap at 100%
+  // Function to calculate BMI
+  function calculateBMI(weight: number, height: number) {
+    bmi = weight / (height * height);
 
     // Determine BMI category
     if (bmi < 16) {
@@ -56,24 +73,24 @@
       bmiPosition = 100;
     }
   }
+
+  // Function to calculate healthy weight range
+  function calculateHealthyWeightRange(height: number) {
+    const minWeight = 18.5 * (height * height); // Minimum healthy weight
+    const maxWeight = 24.9 * (height * height); // Maximum healthy weight
+    healthyWeightRange = { min: minWeight, max: maxWeight };
+  }
 </script>
 
 <main>
   <div class="container">
     <!-- Left Card (Linear Scale) -->
     <div class="card">
-      <svg
-        class="icon"
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 24 24"
-        fill="currentColor"
-      >
-        <path
-          d="M12 2a5 5 0 015 5v2h3a1 1 0 011 1v12a1 1 0 01-1 1H4a1 1 0 01-1-1V10a1 1 0 011-1h3V7a5 5 0 015-5zm6 10H6v8h12v-8zm-6-8a3 3 0 00-3 3v2h6V7a3 3 0 00-3-3z"
-        />
-      </svg>
       <h1>
         Last Weight: {lastWeight !== null ? lastWeight + " kg" : "Loading..."}
+      </h1>
+      <h1>
+        Last Height: {lastHeight !== null ? lastHeight + " m" : "Loading..."}
       </h1>
       <h1>BMI: {bmi !== null ? bmi.toFixed(2) : "Calculating..."}</h1>
       <h2>Classification: {bmiCategory}</h2>
@@ -92,22 +109,19 @@
       </div>
     </div>
 
-    <!-- Right Card (Radial Progress Bar) -->
+    <!-- Right Card (Healthy Weight Range) -->
     <div class="card">
-      <h1>BMI Progress</h1>
-      <div
-        class="radial-progress"
-        style="background: conic-gradient(
-                #00CC66 0%,
-                #FFD700 {bmiPercentage / 1.5}%,
-                #FF4500 {bmiPercentage}%,
-                #FF8C00 100%
-            );"
-      >
-        <span>{bmiPercentage.toFixed(1)}%</span>
-      </div>
-      <h2>BMI: {bmi !== null ? bmi.toFixed(2) : "Calculating..."}</h2>
-      <h2>Classification: {bmiCategory}</h2>
+      <h1>Healthy Weight Range</h1>
+      {#if healthyWeightRange !== null}
+        <h2>
+          For your height {lastHeight?.toFixed(2)} m, a healthy weight range is:
+        </h2>
+        <h1>
+          {healthyWeightRange.min.toFixed(1)} kg to {healthyWeightRange.max.toFixed(1)} kg
+        </h1>
+      {:else}
+        <h2>Calculating healthy weight range...</h2>
+      {/if}
     </div>
   </div>
 </main>
@@ -189,42 +203,4 @@
     color: #666;
   }
 
-  .icon {
-    width: 24px;
-    height: 24px;
-    margin-bottom: 1rem;
-  }
-
-  .radial-progress {
-    width: 150px;
-    height: 150px;
-    margin: 1rem auto;
-    position: relative;
-    border-radius: 50%;
-    background: conic-gradient(
-      #00cc66 0%,
-      #ffd700 60%,
-      #ff4500 90%,
-      #ff8c00 100%
-    );
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .radial-progress::before {
-    content: "";
-    position: absolute;
-    width: 120px;
-    height: 120px;
-    background: white;
-    border-radius: 50%;
-  }
-
-  .radial-progress span {
-    position: relative;
-    font-size: 1.5rem;
-    font-weight: 600;
-    color: #333;
-  }
 </style>
