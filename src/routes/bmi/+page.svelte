@@ -1,7 +1,13 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { db } from "$lib/firebase";
-  import { collection, query, orderBy, limit, getDocs } from "firebase/firestore";
+  import {
+    collection,
+    query,
+    orderBy,
+    limit,
+    getDocs,
+  } from "firebase/firestore";
 
   let lastWeight: number | null = null;
   let lastHeight: number | null = null;
@@ -44,7 +50,8 @@
 
   // Function to calculate BMI
   function calculateBMI(weight: number, height: number) {
-    bmi = weight / (height * height);
+    const heightInMeters = height / 100; // Convert cm to meters
+    bmi = weight / (heightInMeters * heightInMeters);
 
     // Determine BMI category
     if (bmi < 16) {
@@ -76,8 +83,9 @@
 
   // Function to calculate healthy weight range
   function calculateHealthyWeightRange(height: number) {
-    const minWeight = 18.5 * (height * height); // Minimum healthy weight
-    const maxWeight = 24.9 * (height * height); // Maximum healthy weight
+    const heightInMeters = height / 100; // Convert cm to meters
+    const minWeight = 18.5 * (heightInMeters * heightInMeters); // Minimum healthy weight
+    const maxWeight = 24.9 * (heightInMeters * heightInMeters); // Maximum healthy weight
     healthyWeightRange = { min: minWeight, max: maxWeight };
   }
 </script>
@@ -90,7 +98,9 @@
         Last Weight: {lastWeight !== null ? lastWeight + " kg" : "Loading..."}
       </h1>
       <h1>
-        Last Height: {lastHeight !== null ? lastHeight + " m" : "Loading..."}
+        Last Height: {lastHeight !== null
+          ? (lastHeight / 100).toFixed(2) + " m"
+          : "Loading..."}
       </h1>
       <h1>BMI: {bmi !== null ? bmi.toFixed(2) : "Calculating..."}</h1>
       <h2>Classification: {bmiCategory}</h2>
@@ -114,10 +124,13 @@
       <h1>Healthy Weight Range</h1>
       {#if healthyWeightRange !== null}
         <h2>
-          For your height {lastHeight?.toFixed(2)} m, a healthy weight range is:
+          For your height {lastHeight !== null ? (lastHeight / 100).toFixed(2) : "N/A"} m, a healthy weight range
+          is:
         </h2>
         <h1>
-          {healthyWeightRange.min.toFixed(1)} kg to {healthyWeightRange.max.toFixed(1)} kg
+          {healthyWeightRange.min.toFixed(1)} kg to {healthyWeightRange.max.toFixed(
+            1
+          )} kg
         </h1>
       {:else}
         <h2>Calculating healthy weight range...</h2>
@@ -202,5 +215,4 @@
     margin-top: 0.5rem;
     color: #666;
   }
-
 </style>

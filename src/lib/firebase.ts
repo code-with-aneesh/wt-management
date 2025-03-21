@@ -1,6 +1,17 @@
-import { initializeApp, getApps } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { initializeApp, getApps } from "firebase/app";
+import { 
+    getAuth, 
+    GoogleAuthProvider, 
+    signInWithPopup, 
+    signOut 
+} from "firebase/auth";
+import { 
+    getFirestore, 
+    doc, 
+    getDoc, 
+    setDoc 
+} from "firebase/firestore";
+import { user } from "$lib/stores/authStore";
 
 // Firebase Config from .env
 const firebaseConfig = {
@@ -21,21 +32,43 @@ if (!getApps().length) {
 }
 
 export const auth = getAuth(firebaseApp);
+export const db = getFirestore(firebaseApp);
 export const googleProvider = new GoogleAuthProvider();
 
-// Sign in with Google
+// Sign in with Google and add user to Firestore if not exists
 export const loginWithGoogle = async () => {
     try {
         const result = await signInWithPopup(auth, googleProvider);
-        return result.user;
+        const loggedInUser = result.user;
+
+        if (!loggedInUser) return;
+
+        // Reference to Firestore user document
+        const userRef = doc(db, "users", loggedInUser.uid);
+        const userSnap = await getDoc(userRef);
+
+        // If user does not exist, create a new document
+        if (!userSnap.exists()) {
+            await setDoc(userRef, {
+                uid: loggedInUser.uid,
+                name: loggedInUser.displayName || "Anonymous",
+                email: loggedInUser.email || "",
+                photoURL: loggedInUser.photoURL || "",
+                createdAt: new Date().toISOString(),
+            });
+        }
+
+        // Update the Svelte store with user data
+        user.set(loggedInUser);
+
+        return loggedInUser;
     } catch (error) {
-        console.error('Login failed:', error);
+        console.error("Login failed:", error);
     }
 };
 
 // Sign out
 export const logout = async () => {
     await signOut(auth);
+    user.set(null);
 };
-
-export const db = getFirestore(firebaseApp);
