@@ -1,38 +1,61 @@
-# sv
+# Weight Management Application
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+A SvelteKit-based web application for managing weight and height data, calculating BMI, and visualizing progress with interactive charts. Integrated with Firebase for authentication and Firestore for data storage.
 
-## Creating a project
+## Features
 
-If you're seeing this, you've probably already done this step. Congrats!
+- **User Authentication**: Google login via Firebase.
+- **Weight & Height Tracking**: Input and store data with validation.
+- **BMI Calculation**: Calculates BMI and categorizes it.
+- **Healthy Weight Range**: Suggests a healthy weight range based on height.
+- **Interactive Charts**: Visualize weight and height trends using Chart.js.
+- **Responsive Design**: Optimized for mobile, tablet, and desktop.
 
-```bash
-# create a new project in the current directory
-npx sv create
+## Setup
 
-# create a new project in my-app
-npx sv create my-app
-```
+1. **Clone the Repository**:
+   ```bash
+   git clone <repository-url>
+   cd wt-management
+   ```
 
-## Developing
+2. **Install Dependencies**:
+   ```bash
+   npm install
+   ```
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+3. **Configure Firebase**:
+   - Create a Firebase project.
+   - Add your Firebase credentials to a `.env` file:
+     ```
+     VITE_API_KEY=your_api_key
+     VITE_AUTH_DOMAIN=your_auth_domain
+     VITE_PROJECT_ID=your_project_id
+     ```
 
-```bash
-npm run dev
+4. **Run the Development Server**:
+   ```bash
+   npm run dev
+   ```
 
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
-```
+5. **Build for Production**:
+   ```bash
+   npm run build
+   npm run preview
+   ```
 
-## Building
+## Technologies Used
 
-To create a production version of your app:
+- **SvelteKit**: Framework for building the app.
+- **Firebase**: Authentication and Firestore for data storage.
+- **Chart.js**: Interactive charts for data visualization.
+- **Tailwind CSS**: Utility-first CSS framework.
 
-```bash
-npm run build
-```
+## Future Enhancements
 
-You can preview the production build with `npm run preview`.
+- Add support for more authentication providers.
+- Include additional metrics like body fat percentage.
+- Add reminders for regular updates.
+- Improve chart interactivity with zoom and detailed tooltips.
 
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+This application helps users track their weight and height, calculate BMI, and visualize progress effectively.
