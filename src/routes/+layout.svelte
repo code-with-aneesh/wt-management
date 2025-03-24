@@ -62,7 +62,8 @@
       class={`space-x-4 flex items-center mt-2 sm:mt-0 ${menuOpen ? "block" : "hidden"} sm:flex`}
     >
       {#if currentUser}
-        <a href="/bmi" class="text-gray-300 hover:text-white">bmi</a>
+        <a href="/bmi" class="text-gray-300 hover:text-white">Bmi</a>
+        <a href="/input" class="text-gray-300 hover:text-white">Input</a>
         <a href="/dashboard" class="text-gray-300 hover:text-white">Dashboard</a>
         <a href="/about" class="text-gray-300 hover:text-white">About</a>
         <span class="text-gray-300 hidden sm:inline">{currentUser.displayName}</span>

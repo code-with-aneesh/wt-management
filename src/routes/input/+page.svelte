@@ -1,11 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { db, auth } from "$lib/firebase";
-  import {
-    collection,
-    addDoc,
-    serverTimestamp,
-  } from "firebase/firestore";
+  import { collection, addDoc, serverTimestamp } from "firebase/firestore";
   import { onAuthStateChanged } from "firebase/auth";
   import { goto } from "$app/navigation";
   import { Popover } from "flowbite-svelte";
@@ -42,14 +38,15 @@
   }
 
   async function addWeight() {
-    if (!currentUser || !weight) {
-      showMessage("Please enter a valid weight.", "error");
+    const parsedWeight = parseFloat(weight);
+    if (!currentUser || isNaN(parsedWeight) || parsedWeight <= 0) {
+      showMessage("Weight must be a positive number greater than 0.", "error");
       return;
     }
 
     try {
       await addDoc(collection(db, "weights"), {
-        weight: parseFloat(weight),
+        weight: parsedWeight,
         timestamp: serverTimestamp(),
         userId: currentUser.uid,
       });
@@ -64,19 +61,33 @@
   async function addHeight() {
     if (!currentUser) return;
 
-    if (!useCm && (feet === "" || inches === "")) {
-      showMessage("Please enter both feet and inches.", "error");
-      return;
-    }
+    let heightInCm;
 
-    if (useCm && heightCm === "") {
-      showMessage("Please enter height in centimeters.", "error");
-      return;
-    }
+    if (!useCm) {
+      const parsedFeet = parseFloat(feet);
+      const parsedInches = parseFloat(inches);
 
-    const heightInCm = useCm
-      ? parseFloat(heightCm)
-      : parseFloat(feet) * 30.48 + parseFloat(inches) * 2.54;
+      if (
+        isNaN(parsedFeet) ||
+        parsedFeet < 0 ||
+        isNaN(parsedInches) ||
+        parsedInches < 0
+      ) {
+        showMessage("Feet and inches must be non-negative numbers.", "error");
+        return;
+      }
+
+      heightInCm = parsedFeet * 30.48 + parsedInches * 2.54;
+    } else {
+      heightInCm = parseFloat(heightCm);
+      if (isNaN(heightInCm) || heightInCm <= 0) {
+        showMessage(
+          "Height must be a positive number greater than 0.",
+          "error"
+        );
+        return;
+      }
+    }
 
     try {
       await addDoc(collection(db, "heights"), {
@@ -101,7 +112,13 @@
   <!-- Weight Input -->
   <div class="input-group">
     <label for="weight">Weight (kg):</label>
-    <input id="weight" type="number" bind:value={weight} placeholder="e.g., 70" />
+    <input
+      id="weight"
+      type="number"
+      bind:value={weight}
+      placeholder="e.g., 70"
+      min="1"
+    />
     <button on:click={addWeight} class="btn-primary">Add Weight</button>
   </div>
 
@@ -121,16 +138,34 @@
   {#if useCm}
     <div class="input-group">
       <label for="heightCm">Height (cm):</label>
-      <input id="heightCm" type="number" bind:value={heightCm} placeholder="e.g., 175" />
+      <input
+        id="heightCm"
+        type="number"
+        bind:value={heightCm}
+        placeholder="e.g., 175"
+        min="1"
+      />
     </div>
   {:else}
     <div class="input-group">
       <label for="feet">Feet:</label>
-      <input id="feet" type="number" bind:value={feet} placeholder="e.g., 5" />
+      <input
+        id="feet"
+        type="number"
+        bind:value={feet}
+        placeholder="e.g., 5"
+        min="0"
+      />
     </div>
     <div class="input-group">
       <label for="inches">Inches:</label>
-      <input id="inches" type="number" bind:value={inches} placeholder="e.g., 9" />
+      <input
+        id="inches"
+        type="number"
+        bind:value={inches}
+        placeholder="e.g., 9"
+        min="0"
+      />
     </div>
   {/if}
 
@@ -149,7 +184,7 @@
 
 <style>
   :global(body) {
-    font-family: 'Arial', sans-serif;
+    font-family: "Arial", sans-serif;
     background-color: #f4f4f9;
     margin: 0;
     padding: 0;
