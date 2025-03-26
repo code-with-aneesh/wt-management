@@ -1,41 +1,31 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import { fly, fade } from "svelte/transition";
   import { db, auth } from "$lib/firebase";
-  import {
-    collection,
-    addDoc,
-    getDocs,
-    query,
-    orderBy,
-    where,
-  } from "firebase/firestore";
+  import { collection, getDocs, query, orderBy, where } from "firebase/firestore";
   import Chart from "chart.js/auto";
   import { onAuthStateChanged } from "firebase/auth";
   import { goto } from "$app/navigation";
 
-  let weight = 0;
-  let height = 0;
-  let heightUnit: "cm" | "ft" = "cm"; // Default to cm
-  let feet = 0;
-  let inches = 0;
+  // Data variables
   let weights: { weight: number; timestamp: Date }[] = [];
   let heights: { height: number; timestamp: Date }[] = [];
-  let weightChartInstance: Chart | null = null;
-  let heightChartInstance: Chart | null = null;
   let currentUser: { uid: string } | null = null;
-
-  // Canvas references using Svelte's bind directive
+  
+  // Chart references
   let weightCanvas: HTMLCanvasElement;
   let heightCanvas: HTMLCanvasElement;
+  let weightChartInstance: Chart | null = null;
+  let heightChartInstance: Chart | null = null;
 
-  // Reactive computed values for displaying current stats
+  // Computed properties
   $: currentWeight = weights.length ? weights[weights.length - 1].weight : null;
   $: currentHeight = heights.length ? heights[heights.length - 1].height : null;
-  $: currentBMI =
-    currentWeight && currentHeight
-      ? (currentWeight / Math.pow(currentHeight / 100, 2)).toFixed(2)
-      : null;
+  $: currentBMI = currentWeight && currentHeight ? (currentWeight / Math.pow(currentHeight / 100, 2)).toFixed(2) : null;
+  $: bmiCategory = getBMICategory(Number(currentBMI));
+  $: heightInMeters = currentHeight ? (currentHeight / 100).toFixed(2) : null;
 
+  // Initialize component
   onMount(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
@@ -50,286 +40,176 @@
     return () => unsubscribe();
   });
 
-  async function addWeight() {
-    if (weight <= 0) {
-      alert("Weight must be a positive number.");
-      return;
-    }
-    if (currentUser) {
-      try {
-        await addDoc(collection(db, "weights"), {
-          weight,
-          timestamp: new Date(),
-          userId: currentUser.uid,
-        });
-        weight = 0;
-        await fetchWeights();
-      } catch (error) {
-        console.error("Error adding weight: ", error);
-      }
-    }
+  // Helper functions
+  function getBMICategory(bmi: number): string {
+    if (!bmi) return "N/A";
+    if (bmi < 18.5) return "Underweight";
+    if (bmi < 25) return "Normal";
+    if (bmi < 30) return "Overweight";
+    return "Obese";
   }
 
-  async function addHeight() {
-    let heightInCm: number;
-    if (heightUnit === "cm") {
-      if (height <= 0) {
-        alert("Height must be a positive number.");
-        return;
-      }
-      heightInCm = height;
-    } else {
-      if (feet <= 0 || inches < 0 || inches >= 12) {
-        alert("Feet must be positive, and inches must be between 0 and 11.");
-        return;
-      }
-      heightInCm = feet * 30.48 + inches * 2.54;
-    }
-    if (currentUser) {
-      try {
-        await addDoc(collection(db, "heights"), {
-          height: heightInCm,
-          timestamp: new Date(),
-          userId: currentUser.uid,
-        });
-        height = 0;
-        feet = 0;
-        inches = 0;
-        await fetchHeights();
-      } catch (error) {
-        console.error("Error adding height: ", error);
-      }
-    }
-  }
-
+  // Data fetching
   async function fetchWeights() {
     if (!currentUser) return;
+    
     try {
       const q = query(
         collection(db, "weights"),
         where("userId", "==", currentUser.uid),
         orderBy("timestamp", "asc")
       );
-      const querySnapshot = await getDocs(q);
-      weights = querySnapshot.docs.map((doc) => {
-        const data = doc.data();
-        return { weight: data.weight, timestamp: data.timestamp.toDate() };
-      });
+      const snapshot = await getDocs(q);
+      weights = snapshot.docs.map(doc => ({
+        weight: doc.data().weight,
+        timestamp: doc.data().timestamp.toDate()
+      }));
       drawChart("weight");
     } catch (error) {
-      console.error("Error fetching weights: ", error);
+      console.error("Error fetching weights:", error);
     }
   }
 
   async function fetchHeights() {
     if (!currentUser) return;
+    
     try {
       const q = query(
         collection(db, "heights"),
         where("userId", "==", currentUser.uid),
         orderBy("timestamp", "asc")
       );
-      const querySnapshot = await getDocs(q);
-      heights = querySnapshot.docs.map((doc) => {
-        const data = doc.data();
-        return { height: data.height, timestamp: data.timestamp.toDate() };
-      });
+      const snapshot = await getDocs(q);
+      heights = snapshot.docs.map(doc => ({
+        height: doc.data().height,
+        timestamp: doc.data().timestamp.toDate()
+      }));
       drawChart("height");
     } catch (error) {
-      console.error("Error fetching heights: ", error);
+      console.error("Error fetching heights:", error);
     }
   }
 
-  // Generic chart drawing function for both weight and height
   function drawChart(type: "weight" | "height") {
-    let canvas: HTMLCanvasElement,
-      ctx: CanvasRenderingContext2D | null,
-      data: number[],
-      labels: string[],
-      instance: Chart | null,
-      label: string,
-      borderColor: string,
-      pointColor: string,
-      tooltipUnit: string;
+      const isWeight = type === "weight";
+      const canvas = isWeight ? weightCanvas : heightCanvas;
+      const data: { weight: number; timestamp: Date }[] | { height: number; timestamp: Date }[] = isWeight ? weights : heights;
+      const ctx = canvas?.getContext("2d");
+    
+    if (!ctx || !canvas) return;
 
-    if (type === "weight") {
-      canvas = weightCanvas;
-      data = weights.map((item) => item.weight);
-      labels = weights.map((item) => item.timestamp.toLocaleDateString());
-      instance = weightChartInstance;
-      label = "Weight";
-      borderColor = "rgba(75, 192, 192, 1)";
-      pointColor = "rgba(75, 192, 192, 1)";
-      tooltipUnit = "kg";
-    } else {
-      canvas = heightCanvas;
-      data = heights.map((item) => item.height);
-      labels = heights.map((item) => item.timestamp.toLocaleDateString());
-      instance = heightChartInstance;
-      label = "Height";
-      borderColor = "rgba(255, 99, 132, 1)";
-      pointColor = "rgba(255, 99, 132, 1)";
-      tooltipUnit = "cm";
+    // Destroy existing chart if it exists
+    if (isWeight ? weightChartInstance : heightChartInstance) {
+      (isWeight ? weightChartInstance : heightChartInstance)?.destroy();
     }
 
-    if (!canvas) return;
-    ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    if (instance) {
-      instance.destroy();
-    }
-    const newChart = new Chart(ctx, {
+    const chart = new Chart(ctx, {
       type: "line",
       data: {
-        labels,
-        datasets: [
-          {
-            label,
-            data,
-            borderColor,
-            borderWidth: 2,
-            pointBackgroundColor: pointColor,
-            pointHoverRadius: 6,
-          },
-        ],
+        labels: data.map(item => item.timestamp.toLocaleDateString()),
+        datasets: [{
+          label: isWeight ? "Weight (kg)" : "Height (cm)",
+          data: data.map(item => isWeight ? (item as { weight: number; timestamp: Date }).weight : (item as { height: number; timestamp: Date }).height),
+          borderColor: isWeight ? "#3b82f6" : "#10b981",
+          backgroundColor: isWeight ? "#93c5fd" : "#a7f3d0",
+          borderWidth: 2,
+          tension: 0.1,
+          fill: true
+        }]
       },
       options: {
         responsive: true,
+        maintainAspectRatio: false,
         plugins: {
           tooltip: {
-            enabled: true,
             callbacks: {
-              label: (context) => `${label}: ${context.raw} ${tooltipUnit}`,
-            },
+              label: ctx => `${ctx.dataset.label}: ${ctx.raw}`
+            }
           },
-        },
-        hover: {
-          mode: "nearest",
-          intersect: true,
+          legend: {
+            position: "top"
+          }
         },
         scales: {
           y: {
-            beginAtZero: true,
-          },
-        },
-      },
+            beginAtZero: false
+          }
+        }
+      }
     });
-    if (type === "weight") {
-      weightChartInstance = newChart;
+
+    if (isWeight) {
+      weightChartInstance = chart;
     } else {
-      heightChartInstance = newChart;
+      heightChartInstance = chart;
     }
   }
 </script>
 
-<main class="container">
-  <h1>Weight Management</h1>
-  <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-    <div class="bg-white p-6 rounded-lg shadow-md">
-      <h2 class="text-gray-500 text-sm font-semibold">Current Weight</h2>
-      <p class="text-2xl font-bold">
-        {currentWeight !== null ? `${currentWeight} kg` : "N/A"}
-      </p>
-    </div>
-    <div class="bg-white p-6 rounded-lg shadow-md">
-      <h2 class="text-gray-500 text-sm font-semibold">Current Height</h2>
-      <p class="text-2xl font-bold">
-        {currentHeight !== null
-          ? `${(currentHeight / 100).toFixed(2)} m`
-          : "N/A"}
-      </p>
-    </div>
-    <div class="bg-white p-6 rounded-lg shadow-md">
-      <h2 class="text-gray-500 text-sm font-semibold">Current BMI</h2>
-      <p class="text-2xl font-bold">
-        {currentBMI !== null ? currentBMI : "N/A"}
-      </p>
-    </div>
-  </div>
-  <div class="cards">
-    <div class="card">
-      <h2>Weight</h2>
-      <div class="chart-container">
-        <canvas bind:this={weightCanvas}></canvas>
+<div class="min-h-screen bg-gray-50 p-4 md:p-6">
+  <div class="max-w-7xl mx-auto">
+    <header class="mb-8 text-center" transition:fade>
+      <h1 class="text-3xl font-bold text-gray-900 mb-2">Health Dashboard</h1>
+      <p class="text-gray-600">View your weight and height progress</p>
+    </header>
+
+    <!-- Stats Overview -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8" transition:fade>
+      <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+        <h3 class="text-sm font-medium text-gray-500 mb-1">Current Weight</h3>
+        <p class="text-2xl font-bold text-gray-900">
+          {currentWeight ? `${currentWeight} kg` : "N/A"}
+        </p>
+        {#if weights.length > 1}
+          <p class="text-sm mt-1">
+            {weights[weights.length - 1].weight > weights[weights.length - 2].weight ? "↑" : "↓"}
+            {Math.abs(weights[weights.length - 1].weight - weights[weights.length - 2].weight).toFixed(1)} kg
+            from last
+          </p>
+        {/if}
+      </div>
+
+      <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+        <h3 class="text-sm font-medium text-gray-500 mb-1">Current Height</h3>
+        <p class="text-2xl font-bold text-gray-900">
+          {currentHeight ? `${heightInMeters} m` : "N/A"}
+        </p>
+      </div>
+
+      <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+        <h3 class="text-sm font-medium text-gray-500 mb-1">BMI</h3>
+        <div class="flex items-baseline gap-2">
+          <p class="text-2xl font-bold text-gray-900">
+            {currentBMI || "N/A"}
+          </p>
+          {#if bmiCategory !== "N/A"}
+            <span class="text-xs px-2 py-1 rounded-full 
+              {bmiCategory === 'Underweight' ? 'bg-blue-100 text-blue-800' :
+               bmiCategory === 'Normal' ? 'bg-green-100 text-green-800' :
+               bmiCategory === 'Overweight' ? 'bg-yellow-100 text-yellow-800' :
+               'bg-red-100 text-red-800'}">
+              {bmiCategory}
+            </span>
+          {/if}
+        </div>
       </div>
     </div>
-    <div class="card">
-      <h2>Height</h2>
-      <div class="chart-container">
-        <canvas bind:this={heightCanvas}></canvas>
+
+    <!-- Charts Section -->
+    <div class="grid grid-cols-1 gap-6">
+      <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100" transition:fly={{ y: 20 }}>
+        <h2 class="text-lg font-semibold mb-4">Weight Progress</h2>
+        <div class="h-64">
+          <canvas bind:this={weightCanvas}></canvas>
+        </div>
+      </div>
+
+      <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100" transition:fly={{ y: 20, delay: 100 }}>
+        <h2 class="text-lg font-semibold mb-4">Height Progress</h2>
+        <div class="h-64">
+          <canvas bind:this={heightCanvas}></canvas>
+        </div>
       </div>
     </div>
   </div>
-</main>
-
-<style>
-  /* Base styles */
-  .container {
-    text-align: center;
-    margin: 20px auto;
-    padding: 10px;
-    max-width: 1200px;
-  }
-
-  h1 {
-    font-size: 2rem;
-    margin-bottom: 20px;
-  }
-
-  .cards {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 20px;
-    justify-content: center;
-  }
-
-  .card {
-    flex: 1 1 100%;
-    max-width: 500px;
-    padding: 20px;
-    border: 1px solid #ddd;
-    border-radius: 10px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    background: #fff;
-  }
-
-  .chart-container {
-    width: 100%;
-    height: 300px;
-    position: relative;
-  }
-
-  canvas {
-    width: 100% !important;
-    height: 100% !important;
-  }
-
-  @media (max-width: 768px) {
-    h1 {
-      font-size: 1.5rem;
-    }
-
-    .card {
-      flex: 1 1 100%;
-      max-width: 100%;
-    }
-
-    .chart-container {
-      height: 200px;
-    }
-  }
-
-  @media (max-width: 480px) {
-    h1 {
-      font-size: 1.2rem;
-    }
-
-    .card {
-      padding: 15px;
-    }
-
-    .chart-container {
-      height: 150px;
-    }
-  }
-</style>
+</div>
