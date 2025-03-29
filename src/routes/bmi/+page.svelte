@@ -1,168 +1,220 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { db } from "$lib/firebase";
-  import {
-    collection,
-    query,
-    orderBy,
-    limit,
-    getDocs,
+  import { db, auth } from "$lib/firebase";
+  import { 
+    collection, query, orderBy, limit, getDocs, doc, getDoc 
   } from "firebase/firestore";
+  import { onAuthStateChanged } from "firebase/auth";
+  import { goto } from "$app/navigation";
 
+  // User Data
+  let currentUser: { uid: string } | null = null;
   let lastWeight: number | null = null;
   let lastHeight: number | null = null;
+  let age: number | null = null;
+  let gender: string | null = null;
+  let activityLevel: "sedentary" | "light" | "moderate" | "active" | null = null;
+  
+  // Calculations
   let bmi: number | null = null;
+  let bmr: number | null = null;
+  let dailyCalories: number | null = null;
   let bmiCategory: string = "Loading...";
   let bmiPosition: number = 0;
   let healthyWeightRange: { min: number; max: number } | null = null;
+  
+  // UI States
   let loading = true;
   let error: string | null = null;
 
-  // Helper function to convert BMI category to CSS class
-  function getBmiClass(category: string): string {
-    return category.toLowerCase().replace(/[^a-z]/g, '-');
-  }
-
   onMount(async () => {
-    try {
-      // Fetch last weight
-      const weightQuery = query(
-        collection(db, "weights"),
-        orderBy("timestamp", "desc"),
-        limit(1)
-      );
-      const weightSnapshot = await getDocs(weightQuery);
-      
-      if (!weightSnapshot.empty) {
-        weightSnapshot.forEach((doc) => {
-          const data = doc.data();
-          lastWeight = data.weight;
-        });
-      } else {
-        error = "No weight data found";
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        goto("/");
+        return;
       }
+      currentUser = user;
 
-      // Fetch last height
-      const heightQuery = query(
-        collection(db, "heights"),
-        orderBy("timestamp", "desc"),
-        limit(1)
-      );
-      const heightSnapshot = await getDocs(heightQuery);
-      
-      if (!heightSnapshot.empty) {
-        heightSnapshot.forEach((doc) => {
-          const data = doc.data();
-          lastHeight = data.height;
-        });
-      } else {
-        error = error ? `${error} and no height data found` : "No height data found";
-      }
+      try {
+        // Fetch Weight
+        const weightQuery = query(
+          collection(db, "weights"),
+          orderBy("timestamp", "desc"),
+          limit(1)
+        );
+        const weightSnapshot = await getDocs(weightQuery);
+        if (!weightSnapshot.empty) lastWeight = weightSnapshot.docs[0].data().weight;
 
-      // Calculate if we have both values
-      if (lastWeight !== null && lastHeight !== null) {
-        calculateBMI(lastWeight, lastHeight);
-        calculateHealthyWeightRange(lastHeight);
+        // Fetch Height
+        const heightQuery = query(
+          collection(db, "heights"),
+          orderBy("timestamp", "desc"),
+          limit(1)
+        );
+        const heightSnapshot = await getDocs(heightQuery);
+        if (!heightSnapshot.empty) lastHeight = heightSnapshot.docs[0].data().height;
+
+        // Fetch Profile
+        const profileDoc = await getDoc(doc(db, "profiles", user.uid));
+        if (profileDoc.exists()) {
+          const data = profileDoc.data();
+          age = data.age;
+          gender = data.gender;
+          activityLevel = data.activityLevel;
+        }
+
+        // Calculate Metrics
+        if (lastWeight && lastHeight) {
+          calculateBMI(lastWeight, lastHeight);
+          calculateHealthyWeightRange(lastHeight);
+          if (age && gender) calculateBMR();
+        }
+
+      } catch (err) {
+        error = "Failed to load health data";
+        console.error(err);
+      } finally {
+        loading = false;
       }
-    } catch (err) {
-      error = "Failed to load data. Please try again later.";
-      console.error("Error fetching data:", err);
-    } finally {
-      loading = false;
-    }
+    });
   });
 
   function calculateBMI(weight: number, height: number) {
-    const heightInMeters = height / 100;
-    bmi = weight / (heightInMeters * heightInMeters);
+    const heightMeters = height / 100;
+    bmi = weight / (heightMeters * heightMeters);
+    
+    // BMI Categories
+    const categories = [
+      { max: 16, label: "Severe Underweight", position: 5 },
+      { max: 17, label: "Moderate Underweight", position: 10 },
+      { max: 18.5, label: "Mild Underweight", position: 20 },
+      { max: 25, label: "Normal Weight", position: 40 },
+      { max: 30, label: "Overweight", position: 60 },
+      { max: 35, label: "Obese (Class 1)", position: 75 },
+      { max: 40, label: "Obese (Class 2)", position: 90 },
+      { max: Infinity, label: "Morbidly Obese", position: 100 }
+    ];
 
-    // Determine BMI category with more precise positioning
-    if (bmi < 16) {
-      bmiCategory = "Severe Underweight";
-      bmiPosition = (bmi / 16) * 5;
-    } else if (bmi < 17) {
-      bmiCategory = "Moderate Underweight";
-      bmiPosition = 5 + ((bmi - 16) / 1) * 5;
-    } else if (bmi < 18.5) {
-      bmiCategory = "Mild Underweight";
-      bmiPosition = 10 + ((bmi - 17) / 1.5) * 10;
-    } else if (bmi < 25) {
-      bmiCategory = "Normal Weight";
-      bmiPosition = 20 + ((bmi - 18.5) / 6.5) * 20;
-    } else if (bmi < 30) {
-      bmiCategory = "Overweight";
-      bmiPosition = 40 + ((bmi - 25) / 5) * 20;
-    } else if (bmi < 35) {
-      bmiCategory = "Obese (Class 1)";
-      bmiPosition = 60 + ((bmi - 30) / 5) * 15;
-    } else if (bmi < 40) {
-      bmiCategory = "Obese (Class 2)";
-      bmiPosition = 75 + ((bmi - 35) / 5) * 15;
+    const category = categories.find(c => bmi! <= c.max) || categories[0];
+    bmiCategory = category.label;
+    bmiPosition = Math.min(category.position + (bmi! - categories[categories.indexOf(category)-1]?.max || 0), 100);
+  }
+
+  function calculateBMR() {
+    if (!lastWeight || !lastHeight || !age || !gender) return;
+    
+    // Harris-Benedict Equation
+    if (gender === "male") {
+      bmr = 88.362 + (13.397 * lastWeight) + (4.799 * lastHeight) - (5.677 * age);
     } else {
-      bmiCategory = "Morbidly Obese (Class 3)";
-      bmiPosition = Math.min(100, 90 + ((bmi - 40) / 10) * 10);
+      bmr = 447.593 + (9.247 * lastWeight) + (3.098 * lastHeight) - (4.330 * age);
     }
+
+    // Activity Multipliers
+    const multipliers = {
+      sedentary: 1.2,
+      light: 1.375,
+      moderate: 1.55,
+      active: 1.725
+    };
+    
+    dailyCalories = bmr * (activityLevel ? multipliers[activityLevel] : 1.2);
   }
 
   function calculateHealthyWeightRange(height: number) {
-    const heightInMeters = height / 100;
-    const minWeight = 18.5 * (heightInMeters * heightInMeters);
-    const maxWeight = 24.9 * (heightInMeters * heightInMeters);
-    healthyWeightRange = { min: minWeight, max: maxWeight };
+    const heightMeters = height / 100;
+    healthyWeightRange = {
+      min: 18.5 * (heightMeters ** 2),
+      max: 24.9 * (heightMeters ** 2)
+    };
+  }
+
+  function getBmiClass(category: string): string {
+    return category.toLowerCase().replace(/[^a-z]/g, '-');
   }
 </script>
 
-<main class="main-container">
+<main class="min-h-screen bg-gray-50 p-6">
   {#if loading}
-    <div class="loading-container">
-      <div class="spinner"></div>
-      <p>Loading your health data...</p>
+    <div class="flex justify-center items-center h-screen">
+      <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
     </div>
+  
   {:else if error}
-    <div class="error-container">
-      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="10"></circle>
-        <line x1="12" y1="8" x2="12" y2="12"></line>
-        <line x1="12" y1="16" x2="12.01" y2="16"></line>
-      </svg>
-      <p>{error}</p>
+    <div class="max-w-4xl mx-auto bg-red-50 p-6 rounded-xl shadow-sm">
+      <div class="flex items-center gap-3 text-red-600">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+        <p class="text-lg font-medium">{error}</p>
+      </div>
     </div>
+
   {:else}
-    <div class="container">
-      <!-- Left Card (BMI Information) -->
-      <div class="card">
-        <div class="card-header">
-          <h1>Your BMI</h1>
-          {#if bmi !== null}
-            <div class="bmi-value {getBmiClass(bmiCategory)}">
-              {bmi.toFixed(1)}
+    <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <!-- Health Metrics Card -->
+      <div class="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-shadow">
+        <h2 class="text-xl font-bold mb-6 flex items-center gap-2 text-gray-800">
+          <svg class="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+          </svg>
+          Body Metrics
+        </h2>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div class="bg-blue-50 p-4 rounded-xl">
+            <p class="text-sm text-gray-600 mb-1">Weight</p>
+            <p class="text-2xl font-bold text-gray-900">
+              {lastWeight ? `${lastWeight.toFixed(1)} kg` : '--'}
+            </p>
+          </div>
+
+          <div class="bg-purple-50 p-4 rounded-xl">
+            <p class="text-sm text-gray-600 mb-1">Height</p>
+            <p class="text-2xl font-bold text-gray-900">
+              {lastHeight ? `${(lastHeight / 100).toFixed(2)} m` : '--'}
+            </p>
+          </div>
+
+          {#if bmr}
+            <div class="bg-green-50 p-4 rounded-xl">
+              <p class="text-sm text-gray-600 mb-1">BMR</p>
+              <p class="text-2xl font-bold text-gray-900">{bmr.toFixed(0)} kcal</p>
+            </div>
+          {/if}
+
+          {#if dailyCalories}
+            <div class="bg-orange-50 p-4 rounded-xl">
+              <p class="text-sm text-gray-600 mb-1">Daily Calories</p>
+              <p class="text-2xl font-bold text-gray-900">{dailyCalories.toFixed(0)} kcal</p>
             </div>
           {/if}
         </div>
+      </div>
 
-        <div class="stats-grid">
-          <div class="stat-item">
-            <span class="stat-label">Weight</span>
-            <span class="stat-value">{lastWeight !== null ? `${lastWeight} kg` : '--'}</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-label">Height</span>
-            <span class="stat-value">{lastHeight !== null ? `${(lastHeight / 100).toFixed(2)} m` : '--'}</span>
-          </div>
-        </div>
+      <!-- BMI Card -->
+      <div class="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-shadow">
+        <h2 class="text-xl font-bold mb-6 flex items-center gap-2 text-gray-800">
+          <svg class="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+          </svg>
+          BMI Analysis
+        </h2>
 
-        {#if bmi !== null}
-          <div class="classification {getBmiClass(bmiCategory)}">
-            {bmiCategory}
+        {#if bmi}
+          <div class="text-center mb-6">
+            <div class="text-5xl font-bold mb-2 text-{getBmiClass(bmiCategory)}-600">
+              {bmi.toFixed(1)}
+            </div>
+            <div class="text-sm font-medium text-gray-600">{bmiCategory}</div>
           </div>
-        {/if}
 
-        <!-- BMI Scale -->
-        <div class="bmi-scale-container">
-          <div class="bmi-scale">
-            <div class="marker" style="left: {bmiPosition}%;"></div>
+          <div class="relative h-4 bg-gradient-to-r from-yellow-400 via-green-400 to-red-500 rounded-full mb-2">
+            <div class="absolute top-[-4px] w-3 h-6 bg-gray-900 rounded-full transform -translate-x-1/2" 
+                 style="left: {bmiPosition}%"></div>
           </div>
-          <div class="scale-labels">
+
+          <div class="flex justify-between text-xs text-gray-600 px-2">
             <span>16</span>
             <span>18.5</span>
             <span>25</span>
@@ -170,337 +222,97 @@
             <span>35</span>
             <span>40+</span>
           </div>
-          <div class="scale-categories">
-            <span>Underweight</span>
-            <span>Healthy</span>
-            <span>Overweight</span>
-            <span>Obese</span>
+        {:else}
+          <p class="text-gray-500 text-center">BMI data unavailable</p>
+        {/if}
+
+        {#if healthyWeightRange}
+          <div class="mt-6 pt-4 border-t border-gray-100">
+            <p class="text-sm text-gray-600 mb-2">Healthy Weight Range</p>
+            <p class="text-xl font-semibold text-gray-900">
+              {healthyWeightRange.min.toFixed(1)} - {healthyWeightRange.max.toFixed(1)} kg
+            </p>
           </div>
-        </div>
+        {/if}
       </div>
 
-      <!-- Right Card (Healthy Weight Range) -->
-      <div class="card">
-        <div class="card-header">
-          <h1>Healthy Weight Range</h1>
-          {#if healthyWeightRange !== null}
-            <div class="range-display">
-              {healthyWeightRange.min.toFixed(1)} - {healthyWeightRange.max.toFixed(1)} kg
+      <!-- Profile Card -->
+      <div class="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-shadow">
+        <h2 class="text-xl font-bold mb-6 flex items-center gap-2 text-gray-800">
+          <svg class="w-6 h-6 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+          </svg>
+          Health Profile
+        </h2>
+
+        <div class="space-y-4">
+          {#if age}
+            <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+              <span class="text-gray-600">Age</span>
+              <span class="font-medium">{age}</span>
+            </div>
+          {/if}
+
+          {#if gender}
+            <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+              <span class="text-gray-600">Gender</span>
+              <span class="font-medium capitalize">{gender}</span>
+            </div>
+          {/if}
+
+          {#if activityLevel}
+            <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+              <span class="text-gray-600">Activity Level</span>
+              <span class="font-medium text-right capitalize">
+                {activityLevel.replace(/_/g, ' ')}
+              </span>
             </div>
           {/if}
         </div>
 
-        {#if healthyWeightRange !== null && lastWeight !== null}
-          <div class="weight-comparison">
+        {#if healthyWeightRange && lastWeight}
+          <div class="mt-6 pt-4 border-t border-gray-100">
+            <p class="text-sm text-gray-600 mb-3">Weight Comparison</p>
             {#if lastWeight < healthyWeightRange.min}
-              <p>You are <strong>{Math.abs(lastWeight - healthyWeightRange.min).toFixed(1)} kg</strong> under the healthy range</p>
+              <div class="bg-yellow-50 p-4 rounded-lg">
+                <p class="text-yellow-800 font-medium">
+                  Under by {(healthyWeightRange.min - lastWeight).toFixed(1)} kg
+                </p>
+              </div>
             {:else if lastWeight > healthyWeightRange.max}
-              <p>You are <strong>{Math.abs(lastWeight - healthyWeightRange.max).toFixed(1)} kg</strong> over the healthy range</p>
+              <div class="bg-red-50 p-4 rounded-lg">
+                <p class="text-red-800 font-medium">
+                  Over by {(lastWeight - healthyWeightRange.max).toFixed(1)} kg
+                </p>
+              </div>
             {:else}
-              <p>Your weight is within the healthy range!</p>
+              <div class="bg-green-50 p-4 rounded-lg">
+                <p class="text-green-800 font-medium">Within healthy range</p>
+              </div>
             {/if}
           </div>
         {/if}
-
-        <div class="health-tips">
-          <h3>Health Tips</h3>
-          {#if bmi !== null}
-            {#if bmi < 18.5}
-              <ul>
-                <li>Focus on nutrient-dense foods to gain weight healthily</li>
-                <li>Incorporate strength training to build muscle mass</li>
-                <li>Eat regular meals and healthy snacks</li>
-              </ul>
-            {:else if bmi < 25}
-              <ul>
-                <li>Maintain your current healthy habits</li>
-                <li>Continue regular physical activity</li>
-                <li>Eat a balanced diet with variety</li>
-              </ul>
-            {:else}
-              <ul>
-                <li>Start with moderate physical activity like walking</li>
-                <li>Focus on portion control and balanced meals</li>
-                <li>Reduce intake of processed foods and sugary drinks</li>
-              </ul>
-            {/if}
-          {/if}
-        </div>
       </div>
     </div>
   {/if}
 </main>
 
 <style>
-  @import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
+  .text-severe-underweight { color: #dc2626; }
+  .text-moderate-underweight { color: #ea580c; }
+  .text-mild-underweight { color: #ca8a04; }
+  .text-normal-weight { color: #16a34a; }
+  .text-overweight { color: #ea580c; }
+  .text-obese-class-1 { color: #dc2626; }
+  .text-obese-class-2 { color: #991b1b; }
+  .text-morbidly-obese { color: #7f1d1d; }
 
-  :global(body) {
-    font-family: "Inter", sans-serif;
-    background-color: #f5f7fa;
-    margin: 0;
-    padding: 0;
-    color: #333;
-  }
-
-  .main-container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 2rem 1rem;
-  }
-
-  .loading-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 50vh;
-  }
-
-  .spinner {
-    border: 4px solid rgba(0, 0, 0, 0.1);
-    border-radius: 50%;
-    border-top: 4px solid #3498db;
-    width: 40px;
-    height: 40px;
-    animation: spin 1s linear infinite;
-    margin-bottom: 1rem;
-  }
-
-  @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-  }
-
-  .error-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 2rem;
-    background-color: #fff;
-    border-radius: 12px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-    color: #e74c3c;
-    text-align: center;
-  }
-
-  .error-container svg {
-    margin-bottom: 1rem;
-  }
-
-  .container {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-    width: 100%;
-  }
-
-  @media (min-width: 768px) {
-    .container {
-      flex-direction: row;
-    }
-  }
-
-  .card {
-    background: white;
-    border-radius: 16px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-    padding: 1.5rem;
-    flex: 1;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-  }
-
-  .card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
-  }
-
-  .card-header {
-    margin-bottom: 1.5rem;
-    text-align: center;
-    padding-bottom: 1rem;
-    border-bottom: 1px solid #eee;
-  }
-
-  h1 {
-    font-size: 1.5rem;
-    font-weight: 600;
-    color: #2c3e50;
-    margin: 0 0 0.5rem 0;
-  }
-
-  .bmi-value {
-    font-size: 3rem;
-    font-weight: 700;
-    margin: 0.5rem 0;
-  }
-
-  .bmi-value.normal-weight {
-    color: #27ae60;
-  }
-
-  .bmi-value.mild-underweight,
-  .bmi-value.moderate-underweight,
-  .bmi-value.severe-underweight {
-    color: #f39c12;
-  }
-
-  .bmi-value.overweight,
-  .bmi-value.obese--class-1,
-  .bmi-value.obese--class-2,
-  .bmi-value.morbidly-obese--class-3 {
-    color: #e74c3c;
-  }
-
-  .stats-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1rem;
-    margin-bottom: 1.5rem;
-  }
-
-  .stat-item {
-    background: #f8f9fa;
-    padding: 1rem;
-    border-radius: 8px;
-    text-align: center;
-  }
-
-  .stat-label {
-    display: block;
-    font-size: 0.875rem;
-    color: #7f8c8d;
-    margin-bottom: 0.25rem;
-  }
-
-  .stat-value {
-    font-size: 1.25rem;
-    font-weight: 600;
-    color: #2c3e50;
-  }
-
-  .classification {
-    font-size: 1.25rem;
-    font-weight: 600;
-    text-align: center;
-    padding: 0.5rem;
-    border-radius: 8px;
-    margin: 1.5rem 0;
-  }
-
-  .classification.normal-weight {
-    background-color: rgba(39, 174, 96, 0.1);
-    color: #27ae60;
-  }
-
-  .classification.mild-underweight,
-  .classification.moderate-underweight,
-  .classification.severe-underweight {
-    background-color: rgba(243, 156, 18, 0.1);
-    color: #f39c12;
-  }
-
-  .classification.overweight,
-  .classification.obese--class-1,
-  .classification.obese--class-2,
-  .classification.morbidly-obese--class-3 {
-    background-color: rgba(231, 76, 60, 0.1);
-    color: #e74c3c;
-  }
-
-  .bmi-scale-container {
-    margin-top: 2rem;
-  }
-
-  .bmi-scale {
-    width: 100%;
-    height: 16px;
-    background: linear-gradient(
-      to right,
-      #f39c12 0%,
-      #f39c12 10%,
-      #27ae60 10%,
-      #27ae60 40%,
-      #f1c40f 40%,
-      #f1c40f 60%,
-      #e74c3c 60%,
-      #e74c3c 100%
-    );
-    position: relative;
-    border-radius: 8px;
-    margin: 0.5rem 0;
-    overflow: hidden;
-  }
-
-  .marker {
-    position: absolute;
-    top: -4px;
-    height: 24px;
-    width: 12px;
-    background: #2c3e50;
-    border-radius: 6px;
-    transition: left 0.5s ease-in-out;
-    transform: translateX(-50%);
-    z-index: 2;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-  }
-
-  .scale-labels {
-    display: flex;
-    justify-content: space-between;
-    font-size: 0.75rem;
-    color: #7f8c8d;
-    margin-top: 0.25rem;
-  }
-
-  .scale-categories {
-    display: flex;
-    justify-content: space-between;
-    font-size: 0.75rem;
-    font-weight: 500;
-    color: #2c3e50;
-    margin-top: 0.25rem;
-  }
-
-  .range-display {
-    font-size: 2rem;
-    font-weight: 600;
-    color: #27ae60;
-    margin: 0.5rem 0;
-  }
-
-  .weight-comparison {
-    background: #f8f9fa;
-    padding: 1rem;
-    border-radius: 8px;
-    margin: 1.5rem 0;
-    text-align: center;
-  }
-
-  .weight-comparison p {
-    margin: 0;
-    font-size: 1.1rem;
-  }
-
-  .health-tips {
-    margin-top: 1.5rem;
-    padding-top: 1.5rem;
-    border-top: 1px solid #eee;
-  }
-
-  .health-tips h3 {
-    font-size: 1.25rem;
-    color: #2c3e50;
-    margin-bottom: 1rem;
-  }
-
-  .health-tips ul {
-    padding-left: 1.25rem;
-    margin: 0;
-  }
-
-  .health-tips li {
-    margin-bottom: 0.5rem;
-    line-height: 1.5;
-  }
+  .bg-severe-underweight { background-color: #fef2f2; }
+  .bg-moderate-underweight { background-color: #fff7ed; }
+  .bg-mild-underweight { background-color: #fefce8; }
+  .bg-normal-weight { background-color: #f0fdf4; }
+  .bg-overweight { background-color: #fff7ed; }
+  .bg-obese-class-1 { background-color: #fef2f2; }
+  .bg-obese-class-2 { background-color: #fef2f2; }
+  .bg-morbidly-obese { background-color: #fef2f2; }
 </style>

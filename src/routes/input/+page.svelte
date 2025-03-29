@@ -1,11 +1,29 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { db, auth } from "$lib/firebase";
-  import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+  import {
+    collection,
+    addDoc,
+    setDoc,
+    doc,
+    serverTimestamp,
+  } from "firebase/firestore";
   import { onAuthStateChanged } from "firebase/auth";
   import { goto } from "$app/navigation";
-  import { Button, Input, Label, Toggle, Card, Alert, Radio } from "flowbite-svelte";
-  import { CheckCircleOutline, ExclamationCircleOutline } from "flowbite-svelte-icons";
+  import {
+    Button,
+    Input,
+    Label,
+    Toggle,
+    Card,
+    Alert,
+    Radio,
+    Select,
+  } from "flowbite-svelte";
+  import {
+    CheckCircleOutline,
+    ExclamationCircleOutline,
+  } from "flowbite-svelte-icons";
 
   // Form state
   let weight = "";
@@ -13,11 +31,16 @@
   let feet = "";
   let inches = "";
   let useCm = "true";
+  let age = "";
+  let gender = "";
+  let waist = "";
+  let activityLevel = "";
   let currentUser: { uid: string } | null = null;
 
   // Loading states
   let weightLoading = false;
   let heightLoading = false;
+  let profileLoading = false;
 
   // Alert state
   let showAlert = false;
@@ -27,6 +50,9 @@
   // Input validation
   let weightError = "";
   let heightError = "";
+  let ageError = "";
+  let waistError = "";
+  let profileError = "";
 
   onMount(() => {
     onAuthStateChanged(auth, (user) => {
@@ -46,6 +72,7 @@
     setTimeout(() => (showAlert = false), 5000);
   }
 
+  // Validation functions
   function validateWeight(): boolean {
     const parsedWeight = parseFloat(weight);
     if (!weight) {
@@ -60,11 +87,43 @@
       weightError = "Weight must be positive";
       return false;
     }
-    if (parsedWeight > 300) {
-      weightError = "Weight seems unusually high";
+    weightError = "";
+    return true;
+  }
+
+  function validateAge(): boolean {
+    const parsedAge = parseInt(age);
+    if (!age) {
+      ageError = "Age is required";
       return false;
     }
-    weightError = "";
+    if (isNaN(parsedAge)) {
+      ageError = "Please enter a valid number";
+      return false;
+    }
+    if (parsedAge < 18 || parsedAge > 120) {
+      ageError = "Age must be between 18-120";
+      return false;
+    }
+    ageError = "";
+    return true;
+  }
+
+  function validateWaist(): boolean {
+    const parsedWaist = parseFloat(waist);
+    if (!waist) {
+      waistError = "Waist circumference is required";
+      return false;
+    }
+    if (isNaN(parsedWaist)) {
+      waistError = "Please enter a valid number";
+      return false;
+    }
+    if (parsedWaist <= 0) {
+      waistError = "Measurement must be positive";
+      return false;
+    }
+    waistError = "";
     return true;
   }
 
@@ -90,7 +149,7 @@
     } else {
       const parsedFeet = parseFloat(feet);
       const parsedInches = parseFloat(inches);
-      
+
       if (!feet && !inches) {
         heightError = "Height is required";
         return false;
@@ -158,7 +217,7 @@
         timestamp: serverTimestamp(),
         userId: currentUser.uid,
       });
-      
+
       heightCm = "";
       feet = "";
       inches = "";
@@ -170,132 +229,260 @@
       heightLoading = false;
     }
   }
+
+  // Existing height validation remains the same
+
+  async function addProfile() {
+    if (!currentUser) {
+      profileError = "User not authenticated";
+      return;
+    }
+
+    // Validate individual fields first
+    const ageValid = validateAge();
+    const waistValid = validateWaist();
+    const genderValid = !!gender;
+    const activityValid = !!activityLevel;
+
+    if (!ageValid || !waistValid || !genderValid || !activityValid) {
+      profileError = "Please fill all required fields correctly";
+      return;
+    }
+
+    profileLoading = true;
+    try {
+      await setDoc(
+        doc(db, "profiles", currentUser.uid),
+        {
+          userId: currentUser.uid,  // Explicitly store user ID
+          age: parseInt(age),
+          gender,
+          waist: parseFloat(waist),
+          activityLevel,
+          lastUpdated: serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      // Clear errors on success
+      ageError = "";
+      waistError = "";
+      profileError = "";
+      showMessage("Profile updated successfully!", "success");
+    } catch (error) {
+      console.error("Error updating profile: ", error);
+      profileError = "Failed to save profile. Please try again.";
+      showMessage("Failed to update profile. Please try again.", "error");
+    } finally {
+      profileLoading = false;
+    }
+  }
+  // Existing addWeight and addHeight functions remain the same
 </script>
 
-<div class="min-h-screen bg-gray-50 flex items-start justify-center pt-[5vh] md:pt-[10vh] px-4">
-  <Card class="w-full max-w-md shadow-lg">
-    <h2 class="text-2xl font-bold text-center mb-6 text-gray-800">
-      Track Your Measurements
+<div
+  class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex items-start justify-center pt-[5vh] md:pt-[10vh] px-4"
+>
+  <Card class="w-full max-w-2xl shadow-xl rounded-2xl">
+    <h2 class="text-3xl font-bold text-center mb-8 text-gray-800">
+      Health Metrics Tracker
     </h2>
 
-    <!-- Weight Input Section -->
-    <div class="mb-6">
-      <div class="flex justify-between items-center mb-2">
-        <Label for="weight" class="block font-medium">Weight (kg)</Label>
-        {#if weightError}
-          <span class="text-red-600 text-sm">{weightError}</span>
-        {/if}
-      </div>
-      <Input
-        id="weight"
-        type="number"
-        placeholder="e.g., 70.5"
-        bind:value={weight}
-        min="1"
-        step="0.1"
-        class={weightError ? "border-red-500 focus:ring-red-500" : ""}
-        on:blur={validateWeight}
-      />
-      <Button
-        color="blue"
-        class="w-full mt-3"
-        on:click={addWeight}
-        disabled={weightLoading || !weight}
-      >
-        {weightLoading ? "Recording..." : "Record Weight"}
-      </Button>
-    </div>
-
-    <div class="border-t border-gray-200 my-6"></div>
-
-    <!-- Height Input Section -->
-    <div>
-      <h3 class="text-lg font-semibold mb-4 text-gray-700">Height Measurement</h3>
-      
-      <!-- Unit Toggle -->
-      <div class="flex justify-center mb-4 space-x-4">
-        <Radio
-          color="blue"
-          name="height-type"
-          value="true"
-          bind:group={useCm}
-        >
-          <span class="text-gray-700">Centimeters</span>
-        </Radio>
-        <Radio
-          color="blue"
-          name="height-type"
-          value="false"
-          bind:group={useCm}
-        >
-          <span class="text-gray-700">Feet & Inches</span>
-        </Radio>
-      </div>
-
-      <!-- Height Input Fields -->
-      {#if useCm === "true"}
-        <div class="mb-4">
+    <div class="grid md:grid-cols-2 gap-8">
+      <!-- Left Column -->
+      <div class="space-y-6">
+        <!-- Weight Section -->
+        <div class="animate-slide-in">
           <div class="flex justify-between items-center mb-2">
-            <Label for="heightCm" class="block font-medium">Height (cm)</Label>
-            {#if heightError}
-              <span class="text-red-600 text-sm">{heightError}</span>
-            {/if}
+            <Label class="text-lg font-semibold">Weight (kg)</Label>
+            {#if weightError}<span class="text-red-600 text-sm"
+                >{weightError}</span
+              >{/if}
           </div>
           <Input
-            id="heightCm"
             type="number"
-            placeholder="e.g., 175.2"
-            bind:value={heightCm}
+            bind:value={weight}
+            placeholder="72.5"
             min="1"
             step="0.1"
-            class={heightError ? "border-red-500 focus:ring-red-500" : ""}
-            on:blur={validateHeight}
+            class="rounded-lg"
+            on:blur={validateWeight}
           />
+          <Button
+            color="blue"
+            class="w-full mt-3 transform transition hover:scale-[1.02]"
+            on:click={addWeight}
+            disabled={weightLoading || !weight}
+          >
+            {weightLoading ? "Saving..." : "Save Weight"}
+          </Button>
         </div>
-      {:else}
-        <div class="mb-4">
+
+        <!-- Height Section -->
+        <!-- Height Section -->
+        <div class="animate-slide-in delay-100">
           <div class="flex justify-between items-center mb-2">
-            <Label class="block font-medium">Height</Label>
-            {#if heightError}
-              <span class="text-red-600 text-sm">{heightError}</span>
+            <Label class="text-lg font-semibold">Height</Label>
+            {#if heightError}<span class="text-red-600 text-sm"
+                >{heightError}</span
+              >{/if}
+          </div>
+          <div class="space-y-4">
+            <div class="flex gap-4">
+              <Radio
+                name="height-unit"
+                value="true"
+                bind:group={useCm}
+                color="blue"
+                class="flex items-center gap-2"
+              >
+                Centimeters
+              </Radio>
+              <Radio
+                name="height-unit"
+                value="false"
+                bind:group={useCm}
+                color="blue"
+                class="flex items-center gap-2"
+              >
+                Feet & Inches
+              </Radio>
+            </div>
+            {#if useCm === "true"}
+              <Input
+                type="number"
+                bind:value={heightCm}
+                placeholder="175"
+                min="1"
+                on:blur={validateHeight}
+              />
+            {:else}
+              <div class="flex gap-4">
+                <Input
+                  type="number"
+                  bind:value={feet}
+                  placeholder="Feet"
+                  min="0"
+                  on:blur={validateHeight}
+                />
+                <Input
+                  type="number"
+                  bind:value={inches}
+                  placeholder="Inches"
+                  min="0"
+                  max="11"
+                  on:blur={validateHeight}
+                />
+              </div>
+            {/if}
+            <Button
+              color="blue"
+              class="w-full transform transition hover:scale-[1.02]"
+              on:click={addHeight}
+              disabled={heightLoading || (!heightCm && !feet && !inches)}
+            >
+              {heightLoading ? "Saving..." : "Save Height"}
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column - Personal Details -->
+      <div class="animate-slide-in delay-200">
+        <h3 class="text-xl font-semibold mb-6 text-gray-800">
+          Personal Details
+        </h3>
+        <div class="space-y-5">
+          <div>
+            <Label class="block mb-2">Age</Label>
+            <Input
+              type="number"
+              bind:value={age}
+              placeholder="28"
+              min="18"
+              max="120"
+              on:blur={validateAge}
+            />
+            {#if ageError}
+              <p class="text-red-600 text-sm mt-1">{ageError}</p>
             {/if}
           </div>
-          <div class="flex space-x-4">
-            <div class="flex-1">
-              <Input
-                id="feet"
-                type="number"
-                placeholder="Feet"
-                bind:value={feet}
-                min="0"
-                class={heightError ? "border-red-500 focus:ring-red-500" : ""}
-                on:blur={validateHeight}
-              />
-            </div>
-            <div class="flex-1">
-              <Input
-                id="inches"
-                type="number"
-                placeholder="Inches"
-                bind:value={inches}
-                min="0"
-                max="11"
-                class={heightError ? "border-red-500 focus:ring-red-500" : ""}
-                on:blur={validateHeight}
-              />
+
+          <div>
+            <Label class="block mb-2">Gender</Label>
+            <div class="flex gap-4">
+              <Radio name="gender" value="male" bind:group={gender} color="blue"
+                >Male</Radio
+              >
+              <Radio
+                name="gender"
+                value="female"
+                bind:group={gender}
+                color="blue">Female</Radio
+              >
+              <Radio
+                name="gender"
+                value="other"
+                bind:group={gender}
+                color="blue">Other</Radio
+              >
             </div>
           </div>
-        </div>
-      {/if}
 
-      <Button
-        color="blue"
-        class="w-full"
-        on:click={addHeight}
-        disabled={heightLoading || (!heightCm && !feet && !inches)}
-      >
-        {heightLoading ? "Recording..." : "Record Height"}
-      </Button>
+          <div>
+            <Label class="block mb-2">Waist Circumference (cm)</Label>
+            <Input
+              type="number"
+              bind:value={waist}
+              placeholder="86.5"
+              step="0.1"
+              on:blur={validateWaist}
+            />
+            {#if waistError}
+              <p class="text-red-600 text-sm mt-1">{waistError}</p>
+            {/if}
+          </div>
+
+          <div>
+            <Label class="block mb-2">Activity Level</Label>
+            <Select
+              bind:value={activityLevel}
+              class="rounded-lg"
+              on:blur={() =>
+                !activityLevel && (profileError = "Activity level is required")}
+            >
+              <option value="">Select activity level</option>
+              <option value="sedentary">Sedentary (little/no exercise)</option>
+              <option value="light"
+                >Lightly Active (light exercise 1-3 days/week)</option
+              >
+              <option value="moderate"
+                >Moderately Active (moderate exercise 3-5 days/week)</option
+              >
+              <option value="active"
+                >Very Active (intense exercise 6-7 days/week)</option
+              >
+            </Select>
+          </div>
+
+          {#if profileError}
+            <p class="text-red-600 text-sm">{profileError}</p>
+          {/if}
+
+          <Button
+            color="green"
+            class="w-full mt-4 transform transition hover:scale-[1.02]"
+            on:click={addProfile}
+            disabled={profileLoading ||
+              !age ||
+              !gender ||
+              !waist ||
+              !activityLevel}
+          >
+            {profileLoading ? "Saving..." : "Save Profile"}
+          </Button>
+        </div>
+      </div>
     </div>
 
     <!-- Alert Notification -->
@@ -303,16 +490,16 @@
       <div class="mt-6 animate-fade-in">
         <Alert
           color={alertType === "success" ? "green" : "red"}
-          class="shadow-lg"
+          class="shadow-lg rounded-lg"
         >
           <svelte:fragment slot="icon">
             {#if alertType === "success"}
-              <CheckCircleOutline class="w-5 h-5" />
+              <CheckCircleOutline class="w-6 h-6" />
             {:else}
-              <ExclamationCircleOutline class="w-5 h-5" />
+              <ExclamationCircleOutline class="w-6 h-6" />
             {/if}
           </svelte:fragment>
-          <span class="font-medium">{alertMessage}</span>
+          <span class="font-medium text-lg">{alertMessage}</span>
         </Alert>
       </div>
     {/if}
@@ -320,12 +507,39 @@
 </div>
 
 <style>
+  .animate-slide-in {
+    animation: slideIn 0.5s ease-out forwards;
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  .delay-100 {
+    animation-delay: 0.1s;
+  }
+
+  .delay-200 {
+    animation-delay: 0.2s;
+  }
+
+  @keyframes slideIn {
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
   .animate-fade-in {
     animation: fadeIn 0.3s ease-out;
   }
-  
+
   @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 </style>
