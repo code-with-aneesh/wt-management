@@ -98,5 +98,5 @@ MIT License - see [LICENSE](LICENSE) for details.
 ## 📬 Contact
 
 For questions or support, please contact:
-- Email: your.email@example.com
-- GitHub Issues: [github.com/your-repo/issues](https://github.com/your-repo/issues)
+- Email: anesh.angane@gmail.com
+- GitHub Issues: [github.com/your-repo/issues](https://github.com/code-with-aneesh/wt-management/issues)
