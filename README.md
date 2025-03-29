@@ -1,9 +1,5 @@
 # Weight Management Application
 
-<<<svg
-<!-- You can add a logo here if available -->
->>>
-
 A comprehensive SvelteKit-based web application for tracking weight, height, and BMI with interactive visualizations and secure cloud storage.
 
 ## ✨ Key Features
