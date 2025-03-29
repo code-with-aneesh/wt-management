@@ -1,61 +1,106 @@
 # Weight Management Application
 
-A SvelteKit-based web application for managing weight and height data, calculating BMI, and visualizing progress with interactive charts. Integrated with Firebase for authentication and Firestore for data storage.
+<<<svg
+<!-- You can add a logo here if available -->
+>>>
 
-## Features
+A comprehensive SvelteKit-based web application for tracking weight, height, and BMI with interactive visualizations and secure cloud storage.
 
-- **User Authentication**: Google login via Firebase.
-- **Weight & Height Tracking**: Input and store data with validation.
-- **BMI Calculation**: Calculates BMI and categorizes it.
-- **Healthy Weight Range**: Suggests a healthy weight range based on height.
-- **Interactive Charts**: Visualize weight and height trends using Chart.js.
-- **Responsive Design**: Optimized for mobile, tablet, and desktop.
+## ✨ Key Features
 
-## Setup
+- 🔒 **Secure Authentication** - Google login via Firebase
+- 📊 **Data Tracking** - Record weight and height with input validation
+- ⚖️ **BMI Insights** - Automatic BMI calculation with health categorization
+- 🎯 **Personalized Goals** - Healthy weight range suggestions based on height
+- 📈 **Interactive Visualizations** - Beautiful charts using Chart.js
+- 📱 **Fully Responsive** - Optimized for all device sizes
 
-1. **Clone the Repository**:
-   ```bash
-   git clone <repository-url>
-   cd wt-management
-   ```
+## 🚀 Quick Start
 
-2. **Install Dependencies**:
-   ```bash
-   npm install
-   ```
+### Prerequisites
+- Node.js v16+
+- Firebase account
+- Modern web browser
 
-3. **Configure Firebase**:
-   - Create a Firebase project.
-   - Add your Firebase credentials to a `.env` file:
-     ```
-     VITE_API_KEY=your_api_key
-     VITE_AUTH_DOMAIN=your_auth_domain
-     VITE_PROJECT_ID=your_project_id
-     ```
+### Installation
 
-4. **Run the Development Server**:
-   ```bash
-   npm run dev
-   ```
+1. Clone the repository:
+```bash
+git clone https://github.com/your-repo/wt-management.git
+cd wt-management
+```
 
-5. **Build for Production**:
-   ```bash
-   npm run build
-   npm run preview
-   ```
+2. Install dependencies:
+```bash
+npm install
+```
 
-## Technologies Used
+3. Set up Firebase configuration:
+   1. Create a Firebase project at [firebase.google.com](https://firebase.google.com)
+   2. Create a `.env` file in the root directory:
+```env
+VITE_API_KEY=your_firebase_api_key
+VITE_AUTH_DOMAIN=your_project.firebaseapp.com
+VITE_PROJECT_ID=your_project_id
+VITE_STORAGE_BUCKET=your_bucket.appspot.com
+VITE_MESSAGING_SENDER_ID=your_sender_id
+VITE_APP_ID=your_app_id
+```
 
-- **SvelteKit**: Framework for building the app.
-- **Firebase**: Authentication and Firestore for data storage.
-- **Chart.js**: Interactive charts for data visualization.
-- **Tailwind CSS**: Utility-first CSS framework.
+4. Run the development server:
+```bash
+npm run dev
+```
 
-## Future Enhancements
+5. Open your browser to: `http://localhost:5173`
 
-- Add support for more authentication providers.
-- Include additional metrics like body fat percentage.
-- Add reminders for regular updates.
-- Improve chart interactivity with zoom and detailed tooltips.
+## 🛠️ Building for Production
 
-This application helps users track their weight and height, calculate BMI, and visualize progress effectively.
+```bash
+npm run build
+npm run preview
+```
+
+## 🧰 Technology Stack
+
+| Component          | Technology           |
+|--------------------|----------------------|
+| Framework          | SvelteKit            |
+| Authentication     | Firebase Auth        |
+| Database           | Firestore            |
+| Charts             | Chart.js             |
+| Styling            | Tailwind CSS         |
+| State Management   | Svelte Stores        |
+
+## 📅 Future Roadmap
+
+### Planned Enhancements
+- [ ] Multi-provider authentication (Facebook, Apple, Email)
+- [ ] Advanced body metrics (body fat, muscle mass)
+- [ ] Customizable reminders and notifications
+- [ ] Enhanced chart features (zoom, export, annotations)
+- [ ] Mobile app (via Capacitor or similar)
+
+### Known Issues
+- [ ] Chart loading performance on low-end devices
+- [ ] Timezone handling for date tracking
+
+## 🤝 Contributing
+
+We welcome contributions! Please follow these steps:
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/your-feature`)
+3. Commit your changes (`git commit -m 'Add some feature'`)
+4. Push to the branch (`git push origin feature/your-feature`)
+5. Open a Pull Request
+
+## 📜 License
+
+MIT License - see [LICENSE](LICENSE) for details.
+
+## 📬 Contact
+
+For questions or support, please contact:
+- Email: your.email@example.com
+- GitHub Issues: [github.com/your-repo/issues](https://github.com/your-repo/issues)
