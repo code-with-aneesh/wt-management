@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import { DarkMode } from 'flowbite-svelte';
   import { db, auth } from "$lib/firebase";
   import {
     collection,
@@ -280,13 +281,15 @@
   // Existing addWeight and addHeight functions remain the same
 </script>
 
-<div
-  class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex items-start justify-center pt-[5vh] md:pt-[10vh] px-4"
->
-  <Card class="w-full max-w-2xl shadow-xl rounded-2xl">
-    <h2 class="text-3xl font-bold text-center mb-8 text-gray-800">
-      Health Metrics Tracker
-    </h2>
+<div class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-gray-900 dark:to-gray-800 flex items-start justify-center pt-[5vh] md:pt-[10vh] px-4">
+  <Card class="w-full max-w-2xl shadow-xl rounded-2xl dark:bg-gray-800 dark:border-gray-700">
+    <!-- Header Section with Dark Mode Toggle -->
+    <div class="flex justify-between items-center mb-8">
+      <h2 class="text-3xl font-bold text-center text-gray-800 dark:text-white">
+        Health Metrics Tracker
+      </h2>
+      
+    </div>
 
     <div class="grid md:grid-cols-2 gap-8">
       <!-- Left Column -->
@@ -294,10 +297,10 @@
         <!-- Weight Section -->
         <div class="animate-slide-in">
           <div class="flex justify-between items-center mb-2">
-            <Label class="text-lg font-semibold">Weight (kg)</Label>
-            {#if weightError}<span class="text-red-600 text-sm"
-                >{weightError}</span
-              >{/if}
+            <Label class="text-lg font-semibold dark:text-gray-300">Weight (kg)</Label>
+            {#if weightError}
+              <span class="text-red-600 dark:text-red-500 text-sm">{weightError}</span>
+            {/if}
           </div>
           <Input
             type="number"
@@ -305,12 +308,12 @@
             placeholder="72.5"
             min="1"
             step="0.1"
-            class="rounded-lg"
+            class="rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400"
             on:blur={validateWeight}
           />
           <Button
             color="blue"
-            class="w-full mt-3 transform transition hover:scale-[1.02]"
+            class="w-full mt-3 transform transition hover:scale-[1.02] dark:enabled:hover:bg-blue-700"
             on:click={addWeight}
             disabled={weightLoading || !weight}
           >
@@ -319,13 +322,12 @@
         </div>
 
         <!-- Height Section -->
-        <!-- Height Section -->
         <div class="animate-slide-in delay-100">
           <div class="flex justify-between items-center mb-2">
-            <Label class="text-lg font-semibold">Height</Label>
-            {#if heightError}<span class="text-red-600 text-sm"
-                >{heightError}</span
-              >{/if}
+            <Label class="text-lg font-semibold dark:text-gray-300">Height</Label>
+            {#if heightError}
+              <span class="text-red-600 dark:text-red-500 text-sm">{heightError}</span>
+            {/if}
           </div>
           <div class="space-y-4">
             <div class="flex gap-4">
@@ -334,7 +336,7 @@
                 value="true"
                 bind:group={useCm}
                 color="blue"
-                class="flex items-center gap-2"
+                class="flex items-center gap-2 dark:text-gray-300"
               >
                 Centimeters
               </Radio>
@@ -343,7 +345,7 @@
                 value="false"
                 bind:group={useCm}
                 color="blue"
-                class="flex items-center gap-2"
+                class="flex items-center gap-2 dark:text-gray-300"
               >
                 Feet & Inches
               </Radio>
@@ -354,6 +356,7 @@
                 bind:value={heightCm}
                 placeholder="175"
                 min="1"
+                class="dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400"
                 on:blur={validateHeight}
               />
             {:else}
@@ -363,6 +366,7 @@
                   bind:value={feet}
                   placeholder="Feet"
                   min="0"
+                  class="dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400"
                   on:blur={validateHeight}
                 />
                 <Input
@@ -371,13 +375,14 @@
                   placeholder="Inches"
                   min="0"
                   max="11"
+                  class="dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400"
                   on:blur={validateHeight}
                 />
               </div>
             {/if}
             <Button
               color="blue"
-              class="w-full transform transition hover:scale-[1.02]"
+              class="w-full transform transition hover:scale-[1.02] dark:enabled:hover:bg-blue-700"
               on:click={addHeight}
               disabled={heightLoading || (!heightCm && !feet && !inches)}
             >
@@ -389,95 +394,97 @@
 
       <!-- Right Column - Personal Details -->
       <div class="animate-slide-in delay-200">
-        <h3 class="text-xl font-semibold mb-6 text-gray-800">
+        <h3 class="text-xl font-semibold mb-6 text-gray-800 dark:text-white">
           Personal Details
         </h3>
         <div class="space-y-5">
           <div>
-            <Label class="block mb-2">Age</Label>
+            <Label class="block mb-2 dark:text-gray-300">Age</Label>
             <Input
               type="number"
               bind:value={age}
               placeholder="28"
               min="18"
               max="120"
+              class="dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400"
               on:blur={validateAge}
             />
             {#if ageError}
-              <p class="text-red-600 text-sm mt-1">{ageError}</p>
+              <p class="text-red-600 dark:text-red-500 text-sm mt-1">{ageError}</p>
             {/if}
           </div>
 
           <div>
-            <Label class="block mb-2">Gender</Label>
+            <Label class="block mb-2 dark:text-gray-300">Gender</Label>
             <div class="flex gap-4">
-              <Radio name="gender" value="male" bind:group={gender} color="blue"
-                >Male</Radio
+              <Radio
+                name="gender"
+                value="male"
+                bind:group={gender}
+                color="blue"
+                class="dark:text-gray-300"
               >
+                Male
+              </Radio>
               <Radio
                 name="gender"
                 value="female"
                 bind:group={gender}
-                color="blue">Female</Radio
+                color="blue"
+                class="dark:text-gray-300"
               >
+                Female
+              </Radio>
               <Radio
                 name="gender"
                 value="other"
                 bind:group={gender}
-                color="blue">Other</Radio
+                color="blue"
+                class="dark:text-gray-300"
               >
+                Other
+              </Radio>
             </div>
           </div>
 
           <div>
-            <Label class="block mb-2">Waist Circumference (cm)</Label>
+            <Label class="block mb-2 dark:text-gray-300">Waist Circumference (cm)</Label>
             <Input
               type="number"
               bind:value={waist}
               placeholder="86.5"
               step="0.1"
+              class="dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400"
               on:blur={validateWaist}
             />
             {#if waistError}
-              <p class="text-red-600 text-sm mt-1">{waistError}</p>
+              <p class="text-red-600 dark:text-red-500 text-sm mt-1">{waistError}</p>
             {/if}
           </div>
 
           <div>
-            <Label class="block mb-2">Activity Level</Label>
+            <Label class="block mb-2 dark:text-gray-300">Activity Level</Label>
             <Select
               bind:value={activityLevel}
-              class="rounded-lg"
-              on:blur={() =>
-                !activityLevel && (profileError = "Activity level is required")}
+              class="rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
             >
-              <option value="">Select activity level</option>
-              <option value="sedentary">Sedentary (little/no exercise)</option>
-              <option value="light"
-                >Lightly Active (light exercise 1-3 days/week)</option
-              >
-              <option value="moderate"
-                >Moderately Active (moderate exercise 3-5 days/week)</option
-              >
-              <option value="active"
-                >Very Active (intense exercise 6-7 days/week)</option
-              >
+              <option value="" class="dark:bg-gray-700">Select activity level</option>
+              <option value="sedentary" class="dark:bg-gray-700">Sedentary (little/no exercise)</option>
+              <option value="light" class="dark:bg-gray-700">Lightly Active (light exercise 1-3 days/week)</option>
+              <option value="moderate" class="dark:bg-gray-700">Moderately Active (moderate exercise 3-5 days/week)</option>
+              <option value="active" class="dark:bg-gray-700">Very Active (intense exercise 6-7 days/week)</option>
             </Select>
           </div>
 
           {#if profileError}
-            <p class="text-red-600 text-sm">{profileError}</p>
+            <p class="text-red-600 dark:text-red-500 text-sm">{profileError}</p>
           {/if}
 
           <Button
             color="green"
-            class="w-full mt-4 transform transition hover:scale-[1.02]"
+            class="w-full mt-4 transform transition hover:scale-[1.02] dark:enabled:hover:bg-green-700"
             on:click={addProfile}
-            disabled={profileLoading ||
-              !age ||
-              !gender ||
-              !waist ||
-              !activityLevel}
+            disabled={profileLoading || !age || !gender || !waist || !activityLevel}
           >
             {profileLoading ? "Saving..." : "Save Profile"}
           </Button>
@@ -490,16 +497,16 @@
       <div class="mt-6 animate-fade-in">
         <Alert
           color={alertType === "success" ? "green" : "red"}
-          class="shadow-lg rounded-lg"
+          class="shadow-lg rounded-lg dark:bg-gray-700 dark:border-gray-600"
         >
           <svelte:fragment slot="icon">
             {#if alertType === "success"}
-              <CheckCircleOutline class="w-6 h-6" />
+              <CheckCircleOutline class="w-6 h-6 dark:text-green-400" />
             {:else}
-              <ExclamationCircleOutline class="w-6 h-6" />
+              <ExclamationCircleOutline class="w-6 h-6 dark:text-red-400" />
             {/if}
           </svelte:fragment>
-          <span class="font-medium text-lg">{alertMessage}</span>
+          <span class="font-medium text-lg dark:text-white">{alertMessage}</span>
         </Alert>
       </div>
     {/if}
