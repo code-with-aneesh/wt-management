@@ -44,12 +44,15 @@
 
     (async () => {
       // Dynamically load chart-related dependencies
-      const [{ default: Chart }, { default: zoomPlugin }, { default: trendlinePlugin }] = 
-        await Promise.all([
-          import("chart.js/auto"),
-          import("chartjs-plugin-zoom"),
-          import("chartjs-plugin-trendline")
-        ]);
+      const [
+        { default: Chart },
+        { default: zoomPlugin },
+        { default: trendlinePlugin },
+      ] = await Promise.all([
+        import("chart.js/auto"),
+        import("chartjs-plugin-zoom"),
+        import("chartjs-plugin-trendline"),
+      ]);
 
       Chart.register(zoomPlugin, trendlinePlugin);
 
@@ -72,9 +75,9 @@
             datasets: [
               {
                 label: isWeight ? "Weight (kg)" : "Height (cm)",
-                data: data.map((item) => 
-                  isWeight 
-                    ? (item as { weight: number }).weight 
+                data: data.map((item) =>
+                  isWeight
+                    ? (item as { weight: number }).weight
                     : (item as { height: number }).height
                 ),
                 borderColor: isWeight ? "#3b82f6" : "#10b981",
@@ -166,6 +169,19 @@
     if (bmi < 30) return "Overweight";
     return "Obese";
   }
+
+  // Add these functions
+  function handleZoom(type: "weight" | "height", direction: "in" | "out") {
+    const chart = type === "weight" ? weightChartInstance : heightChartInstance;
+    if (!chart) return;
+    const factor = direction === "in" ? 1.1 : 0.9;
+    chart.zoom(factor, { x: true, y: false });
+  }
+
+  function handleResetZoom(type: "weight" | "height") {
+    const chart = type === "weight" ? weightChartInstance : heightChartInstance;
+    chart?.resetZoom();
+  }
 </script>
 
 <div class="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-6">
@@ -252,21 +268,152 @@
         class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700"
         transition:fly={{ y: 20 }}
       >
-        <h2 class="text-lg font-semibold mb-4 dark:text-white">
-          Weight Progress
-        </h2>
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-lg font-semibold dark:text-white">Weight Progress</h2>
+          <div class="flex gap-1">
+            <button
+              on:click={() => handleZoom("weight", "in")}
+              class="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              title="Zoom In"
+              aria-label="Zoom In"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="w-5 h-5 text-gray-600 dark:text-gray-300"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                />
+              </svg>
+            </button>
+            <button
+              on:click={() => handleZoom("weight", "out")}
+              class="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              title="Zoom Out"
+              aria-label="Zoom Out"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="w-5 h-5 text-gray-600 dark:text-gray-300"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M18 12H6"
+                />
+              </svg>
+            </button>
+            <button
+              on:click={() => handleResetZoom("weight")}
+              class="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              title="Reset Zoom"
+              aria-label="Reset Zoom"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="w-5 h-5 text-gray-600 dark:text-gray-300"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
         <div class="h-64">
           <canvas bind:this={weightCanvas}></canvas>
         </div>
       </div>
 
+      <!-- Height Chart Section -->
       <div
         class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700"
         transition:fly={{ y: 20, delay: 100 }}
       >
-        <h2 class="text-lg font-semibold mb-4 dark:text-white">
-          Height Progress
-        </h2>
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-lg font-semibold dark:text-white">Height Progress</h2>
+          <div class="flex gap-1">
+            <button
+              on:click={() => handleZoom("height", "in")}
+              class="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              title="Zoom In"
+              aria-label="Zoom In"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="w-5 h-5 text-gray-600 dark:text-gray-300"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                />
+              </svg>
+            </button>
+            <button
+              on:click={() => handleZoom("height", "out")}
+              class="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              title="Zoom Out"
+              aria-label="Zoom Out"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="w-5 h-5 text-gray-600 dark:text-gray-300"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M18 12H6"
+                />
+              </svg>
+            </button>
+            <button
+              on:click={() => handleResetZoom("height")}
+              class="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              title="Reset Zoom"
+              aria-label="Reset Zoom"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="w-5 h-5 text-gray-600 dark:text-gray-300"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
         <div class="h-64">
           <canvas bind:this={heightCanvas}></canvas>
         </div>
