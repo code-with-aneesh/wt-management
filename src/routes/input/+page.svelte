@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { DarkMode } from 'flowbite-svelte';
+  import { DarkMode } from "flowbite-svelte";
   import { db, auth } from "$lib/firebase";
   import {
     collection,
@@ -255,7 +255,7 @@
       await setDoc(
         doc(db, "profiles", currentUser.uid),
         {
-          userId: currentUser.uid,  // Explicitly store user ID
+          userId: currentUser.uid, // Explicitly store user ID
           age: parseInt(age),
           gender,
           waist: parseFloat(waist),
@@ -281,14 +281,17 @@
   // Existing addWeight and addHeight functions remain the same
 </script>
 
-<div class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-gray-900 dark:to-gray-800 flex items-start justify-center pt-[5vh] md:pt-[10vh] px-4">
-  <Card class="w-full max-w-2xl shadow-xl rounded-2xl dark:bg-gray-800 dark:border-gray-700">
+<div
+  class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-gray-900 dark:to-gray-800 flex items-start justify-center pt-[5vh] md:pt-[10vh] px-4"
+>
+  <Card
+    class="w-full max-w-2xl shadow-xl rounded-2xl dark:bg-gray-800 dark:border-gray-700"
+  >
     <!-- Header Section with Dark Mode Toggle -->
     <div class="flex justify-between items-center mb-8">
       <h2 class="text-3xl font-bold text-center text-gray-800 dark:text-white">
         Health Metrics Tracker
       </h2>
-      
     </div>
 
     <div class="grid md:grid-cols-2 gap-8">
@@ -297,9 +300,13 @@
         <!-- Weight Section -->
         <div class="animate-slide-in">
           <div class="flex justify-between items-center mb-2">
-            <Label class="text-lg font-semibold dark:text-gray-300">Weight (kg)</Label>
+            <Label class="text-lg font-semibold dark:text-gray-300"
+              >Weight (kg)</Label
+            >
             {#if weightError}
-              <span class="text-red-600 dark:text-red-500 text-sm">{weightError}</span>
+              <span class="text-red-600 dark:text-red-500 text-sm"
+                >{weightError}</span
+              >
             {/if}
           </div>
           <Input
@@ -324,9 +331,13 @@
         <!-- Height Section -->
         <div class="animate-slide-in delay-100">
           <div class="flex justify-between items-center mb-2">
-            <Label class="text-lg font-semibold dark:text-gray-300">Height</Label>
+            <Label class="text-lg font-semibold dark:text-gray-300"
+              >Height</Label
+            >
             {#if heightError}
-              <span class="text-red-600 dark:text-red-500 text-sm">{heightError}</span>
+              <span class="text-red-600 dark:text-red-500 text-sm"
+                >{heightError}</span
+              >
             {/if}
           </div>
           <div class="space-y-4">
@@ -410,7 +421,9 @@
               on:blur={validateAge}
             />
             {#if ageError}
-              <p class="text-red-600 dark:text-red-500 text-sm mt-1">{ageError}</p>
+              <p class="text-red-600 dark:text-red-500 text-sm mt-1">
+                {ageError}
+              </p>
             {/if}
           </div>
 
@@ -448,7 +461,9 @@
           </div>
 
           <div>
-            <Label class="block mb-2 dark:text-gray-300">Waist Circumference (cm)</Label>
+            <Label class="block mb-2 dark:text-gray-300"
+              >Waist Circumference (cm)</Label
+            >
             <Input
               type="number"
               bind:value={waist}
@@ -458,7 +473,9 @@
               on:blur={validateWaist}
             />
             {#if waistError}
-              <p class="text-red-600 dark:text-red-500 text-sm mt-1">{waistError}</p>
+              <p class="text-red-600 dark:text-red-500 text-sm mt-1">
+                {waistError}
+              </p>
             {/if}
           </div>
 
@@ -468,11 +485,21 @@
               bind:value={activityLevel}
               class="rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
             >
-              <option value="" class="dark:bg-gray-700">Select activity level</option>
-              <option value="sedentary" class="dark:bg-gray-700">Sedentary (little/no exercise)</option>
-              <option value="light" class="dark:bg-gray-700">Lightly Active (light exercise 1-3 days/week)</option>
-              <option value="moderate" class="dark:bg-gray-700">Moderately Active (moderate exercise 3-5 days/week)</option>
-              <option value="active" class="dark:bg-gray-700">Very Active (intense exercise 6-7 days/week)</option>
+              <option value="" class="dark:bg-gray-700"
+                >Select activity level</option
+              >
+              <option value="sedentary" class="dark:bg-gray-700"
+                >Sedentary (little/no exercise)</option
+              >
+              <option value="light" class="dark:bg-gray-700"
+                >Lightly Active (light exercise 1-3 days/week)</option
+              >
+              <option value="moderate" class="dark:bg-gray-700"
+                >Moderately Active (moderate exercise 3-5 days/week)</option
+              >
+              <option value="active" class="dark:bg-gray-700"
+                >Very Active (intense exercise 6-7 days/week)</option
+              >
             </Select>
           </div>
 
@@ -484,7 +511,11 @@
             color="green"
             class="w-full mt-4 transform transition hover:scale-[1.02] dark:enabled:hover:bg-green-700"
             on:click={addProfile}
-            disabled={profileLoading || !age || !gender || !waist || !activityLevel}
+            disabled={profileLoading ||
+              !age ||
+              !gender ||
+              !waist ||
+              !activityLevel}
           >
             {profileLoading ? "Saving..." : "Save Profile"}
           </Button>
@@ -506,7 +537,8 @@
               <ExclamationCircleOutline class="w-6 h-6 dark:text-red-400" />
             {/if}
           </svelte:fragment>
-          <span class="font-medium text-lg dark:text-white">{alertMessage}</span>
+          <span class="font-medium text-lg dark:text-white">{alertMessage}</span
+          >
         </Alert>
       </div>
     {/if}

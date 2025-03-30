@@ -14,6 +14,7 @@ A comprehensive SvelteKit-based web application for tracking weight, height, and
 ## 🚀 Quick Start
 
 ### Prerequisites
+
 - Node.js v16+
 - Firebase account
 - Modern web browser
@@ -21,12 +22,14 @@ A comprehensive SvelteKit-based web application for tracking weight, height, and
 ### Installation
 
 1. Clone the repository:
+
 ```bash
 git clone https://github.com/your-repo/wt-management.git
 cd wt-management
 ```
 
 2. Install dependencies:
+
 ```bash
 npm install
 ```
@@ -34,6 +37,7 @@ npm install
 3. Set up Firebase configuration:
    1. Create a Firebase project at [firebase.google.com](https://firebase.google.com)
    2. Create a `.env` file in the root directory:
+
 ```env
 VITE_API_KEY=your_firebase_api_key
 VITE_AUTH_DOMAIN=your_project.firebaseapp.com
@@ -44,6 +48,7 @@ VITE_APP_ID=your_app_id
 ```
 
 4. Run the development server:
+
 ```bash
 npm run dev
 ```
@@ -59,18 +64,19 @@ npm run preview
 
 ## 🧰 Technology Stack
 
-| Component          | Technology           |
-|--------------------|----------------------|
-| Framework          | SvelteKit            |
-| Authentication     | Firebase Auth        |
-| Database           | Firestore            |
-| Charts             | Chart.js             |
-| Styling            | Tailwind CSS         |
-| State Management   | Svelte Stores        |
+| Component        | Technology    |
+| ---------------- | ------------- |
+| Framework        | SvelteKit     |
+| Authentication   | Firebase Auth |
+| Database         | Firestore     |
+| Charts           | Chart.js      |
+| Styling          | Tailwind CSS  |
+| State Management | Svelte Stores |
 
 ## 📅 Future Roadmap
 
 ### Planned Enhancements
+
 - [ ] Multi-provider authentication (Facebook, Apple, Email)
 - [ ] Advanced body metrics (body fat, muscle mass)
 - [ ] Customizable reminders and notifications
@@ -78,6 +84,7 @@ npm run preview
 - [ ] Mobile app (via Capacitor or similar)
 
 ### Known Issues
+
 - [ ] Chart loading performance on low-end devices
 - [ ] Timezone handling for date tracking
 
@@ -98,5 +105,6 @@ MIT License - see [LICENSE](LICENSE) for details.
 ## 📬 Contact
 
 For questions or support, please contact:
+
 - Email: anesh.angane@gmail.com
 - GitHub Issues: [github.com/your-repo/issues](https://github.com/code-with-aneesh/wt-management/issues)
