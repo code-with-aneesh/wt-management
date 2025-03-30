@@ -2,6 +2,8 @@
   import { onMount } from "svelte";
   import { DarkMode } from "flowbite-svelte";
   import { fly, fade } from "svelte/transition";
+  import { browser } from "$app/environment";
+
   import { db, auth } from "$lib/firebase";
   import {
     collection,
@@ -10,7 +12,6 @@
     orderBy,
     where,
   } from "firebase/firestore";
-  import Chart from "chart.js/auto";
   import { onAuthStateChanged } from "firebase/auth";
   import { goto } from "$app/navigation";
 
@@ -22,8 +23,8 @@
   // Chart references
   let weightCanvas: HTMLCanvasElement;
   let heightCanvas: HTMLCanvasElement;
-  let weightChartInstance: Chart | null = null;
-  let heightChartInstance: Chart | null = null;
+  let weightChartInstance: any = null;
+  let heightChartInstance: any = null;
 
   // Computed properties
   $: currentWeight = weights.length ? weights[weights.length - 1].weight : null;
@@ -37,130 +38,133 @@
 
   // Initialize component
   onMount(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        currentUser = user;
-        fetchWeights();
-        fetchHeights();
-      } else {
-        currentUser = null;
-        goto("/");
-      }
-    });
-    return () => unsubscribe();
+    if (!browser) return;
+
+    let cleanup: (() => void) | undefined;
+
+    (async () => {
+      // Dynamically load chart-related dependencies
+      const [{ default: Chart }, { default: zoomPlugin }, { default: trendlinePlugin }] = 
+        await Promise.all([
+          import("chart.js/auto"),
+          import("chartjs-plugin-zoom"),
+          import("chartjs-plugin-trendline")
+        ]);
+
+      Chart.register(zoomPlugin, trendlinePlugin);
+
+      const drawChart = (type: "weight" | "height") => {
+        const isWeight = type === "weight";
+        const canvas = isWeight ? weightCanvas : heightCanvas;
+        const data = isWeight ? weights : heights;
+        const ctx = canvas?.getContext("2d");
+
+        if (!ctx || !canvas) return;
+
+        // Destroy existing chart
+        if (isWeight && weightChartInstance) weightChartInstance.destroy();
+        if (!isWeight && heightChartInstance) heightChartInstance.destroy();
+
+        const chart = new Chart(ctx, {
+          type: "line",
+          data: {
+            labels: data.map((item) => item.timestamp.toLocaleDateString()),
+            datasets: [
+              {
+                label: isWeight ? "Weight (kg)" : "Height (cm)",
+                data: data.map((item) => 
+                  isWeight 
+                    ? (item as { weight: number }).weight 
+                    : (item as { height: number }).height
+                ),
+                borderColor: isWeight ? "#3b82f6" : "#10b981",
+                backgroundColor: isWeight ? "#93c5fd" : "#a7f3d0",
+                borderWidth: 2,
+                tension: 0.1,
+                fill: true,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              zoom: {
+                zoom: {
+                  wheel: { enabled: true },
+                  pinch: { enabled: true },
+                  mode: "x",
+                },
+                pan: {
+                  enabled: true,
+                  mode: "x",
+                },
+              },
+            },
+          },
+        });
+
+        if (isWeight) weightChartInstance = chart;
+        else heightChartInstance = chart;
+      };
+
+      const fetchWeights = async () => {
+        if (!currentUser) return;
+        const q = query(
+          collection(db, "weights"),
+          where("userId", "==", currentUser.uid),
+          orderBy("timestamp", "asc")
+        );
+        const snapshot = await getDocs(q);
+        weights = snapshot.docs.map((doc) => ({
+          weight: doc.data().weight,
+          timestamp: doc.data().timestamp.toDate(),
+        }));
+        drawChart("weight");
+      };
+
+      const fetchHeights = async () => {
+        if (!currentUser) return;
+        const q = query(
+          collection(db, "heights"),
+          where("userId", "==", currentUser.uid),
+          orderBy("timestamp", "asc")
+        );
+        const snapshot = await getDocs(q);
+        heights = snapshot.docs.map((doc) => ({
+          height: doc.data().height,
+          timestamp: doc.data().timestamp.toDate(),
+        }));
+        drawChart("height");
+      };
+
+      const unsubscribe = onAuthStateChanged(auth, (user) => {
+        if (user) {
+          currentUser = user;
+          fetchWeights();
+          fetchHeights();
+        } else {
+          currentUser = null;
+          goto("/");
+        }
+      });
+
+      cleanup = () => {
+        unsubscribe();
+        if (weightChartInstance) weightChartInstance.destroy();
+        if (heightChartInstance) heightChartInstance.destroy();
+      };
+    })();
+
+    return cleanup;
   });
 
-  // Helper functions
   function getBMICategory(bmi: number): string {
     if (!bmi) return "N/A";
     if (bmi < 18.5) return "Underweight";
     if (bmi < 25) return "Normal";
     if (bmi < 30) return "Overweight";
     return "Obese";
-  }
-
-  // Data fetching
-  async function fetchWeights() {
-    if (!currentUser) return;
-
-    try {
-      const q = query(
-        collection(db, "weights"),
-        where("userId", "==", currentUser.uid),
-        orderBy("timestamp", "asc")
-      );
-      const snapshot = await getDocs(q);
-      weights = snapshot.docs.map((doc) => ({
-        weight: doc.data().weight,
-        timestamp: doc.data().timestamp.toDate(),
-      }));
-      drawChart("weight");
-    } catch (error) {
-      console.error("Error fetching weights:", error);
-    }
-  }
-
-  async function fetchHeights() {
-    if (!currentUser) return;
-
-    try {
-      const q = query(
-        collection(db, "heights"),
-        where("userId", "==", currentUser.uid),
-        orderBy("timestamp", "asc")
-      );
-      const snapshot = await getDocs(q);
-      heights = snapshot.docs.map((doc) => ({
-        height: doc.data().height,
-        timestamp: doc.data().timestamp.toDate(),
-      }));
-      drawChart("height");
-    } catch (error) {
-      console.error("Error fetching heights:", error);
-    }
-  }
-
-  function drawChart(type: "weight" | "height") {
-    const isWeight = type === "weight";
-    const canvas = isWeight ? weightCanvas : heightCanvas;
-    const data:
-      | { weight: number; timestamp: Date }[]
-      | { height: number; timestamp: Date }[] = isWeight ? weights : heights;
-    const ctx = canvas?.getContext("2d");
-
-    if (!ctx || !canvas) return;
-
-    // Destroy existing chart if it exists
-    if (isWeight ? weightChartInstance : heightChartInstance) {
-      (isWeight ? weightChartInstance : heightChartInstance)?.destroy();
-    }
-
-    const chart = new Chart(ctx, {
-      type: "line",
-      data: {
-        labels: data.map((item) => item.timestamp.toLocaleDateString()),
-        datasets: [
-          {
-            label: isWeight ? "Weight (kg)" : "Height (cm)",
-            data: data.map((item) =>
-              isWeight
-                ? (item as { weight: number; timestamp: Date }).weight
-                : (item as { height: number; timestamp: Date }).height
-            ),
-            borderColor: isWeight ? "#3b82f6" : "#10b981",
-            backgroundColor: isWeight ? "#93c5fd" : "#a7f3d0",
-            borderWidth: 2,
-            tension: 0.1,
-            fill: true,
-          },
-        ],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          tooltip: {
-            callbacks: {
-              label: (ctx) => `${ctx.dataset.label}: ${ctx.raw}`,
-            },
-          },
-          legend: {
-            position: "top",
-          },
-        },
-        scales: {
-          y: {
-            beginAtZero: false,
-          },
-        },
-      },
-    });
-
-    if (isWeight) {
-      weightChartInstance = chart;
-    } else {
-      heightChartInstance = chart;
-    }
   }
 </script>
 
