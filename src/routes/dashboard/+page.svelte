@@ -11,30 +11,34 @@
     query,
     orderBy,
     where,
+    doc,
+    getDoc,
   } from "firebase/firestore";
   import { onAuthStateChanged } from "firebase/auth";
   import { goto } from "$app/navigation";
 
   // Data variables
   let weights: { weight: number; timestamp: Date }[] = [];
-  let heights: { height: number; timestamp: Date }[] = [];
+  let gymDates: { [key: string]: string } = {};
   let currentUser: { uid: string } | null = null;
 
   // Chart references
   let weightCanvas: HTMLCanvasElement;
-  let heightCanvas: HTMLCanvasElement;
+  let gymCanvas: HTMLCanvasElement;
   let weightChartInstance: any = null;
-  let heightChartInstance: any = null;
+  let gymChartInstance: any = null;
 
-  // Computed properties
+  // Computed properties for weight
   $: currentWeight = weights.length ? weights[weights.length - 1].weight : null;
-  $: currentHeight = heights.length ? heights[heights.length - 1].height : null;
-  $: currentBMI =
-    currentWeight && currentHeight
-      ? (currentWeight / Math.pow(currentHeight / 100, 2)).toFixed(2)
-      : null;
+  $: currentBMI = currentWeight ? (currentWeight / Math.pow(1.75, 2)).toFixed(2) : null; // Assuming average height of 1.75m since height data is removed
   $: bmiCategory = getBMICategory(Number(currentBMI));
-  $: heightInMeters = currentHeight ? (currentHeight / 100).toFixed(2) : null;
+
+  // Computed properties for gym attendance
+  $: totalGymDays = Object.values(gymDates).filter(status => status === "green").length;
+  $: consecutiveGymDays = calculateConsecutiveGymDays(gymDates);
+  $: gymAttendancePercentage = Object.keys(gymDates).length > 0
+    ? ((totalGymDays / Object.keys(gymDates).length) * 100).toFixed(1)
+    : "0.0";
 
   // Initialize component
   onMount(() => {
@@ -56,59 +60,113 @@
 
       Chart.register(zoomPlugin, trendlinePlugin);
 
-      const drawChart = (type: "weight" | "height") => {
+      const drawChart = (type: "weight" | "gym") => {
         const isWeight = type === "weight";
-        const canvas = isWeight ? weightCanvas : heightCanvas;
-        const data = isWeight ? weights : heights;
+        const canvas = isWeight ? weightCanvas : gymCanvas;
         const ctx = canvas?.getContext("2d");
 
         if (!ctx || !canvas) return;
 
         // Destroy existing chart
         if (isWeight && weightChartInstance) weightChartInstance.destroy();
-        if (!isWeight && heightChartInstance) heightChartInstance.destroy();
+        if (!isWeight && gymChartInstance) gymChartInstance.destroy();
 
-        const chart = new Chart(ctx, {
-          type: "line",
-          data: {
-            labels: data.map((item) => item.timestamp.toLocaleDateString()),
-            datasets: [
-              {
-                label: isWeight ? "Weight (kg)" : "Height (cm)",
-                data: data.map((item) =>
-                  isWeight
-                    ? (item as { weight: number }).weight
-                    : (item as { height: number }).height
-                ),
-                borderColor: isWeight ? "#3b82f6" : "#10b981",
-                backgroundColor: isWeight ? "#93c5fd" : "#a7f3d0",
-                borderWidth: 2,
-                tension: 0.1,
-                fill: true,
-              },
-            ],
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-              zoom: {
-                zoom: {
-                  wheel: { enabled: true },
-                  pinch: { enabled: true },
-                  mode: "x",
+        if (isWeight) {
+          const chart = new Chart(ctx, {
+            type: "line",
+            data: {
+              labels: weights.map((item) => item.timestamp.toLocaleDateString()),
+              datasets: [
+                {
+                  label: "Weight (kg)",
+                  data: weights.map((item) => item.weight),
+                  borderColor: "#3b82f6",
+                  backgroundColor: "#93c5fd",
+                  borderWidth: 2,
+                  tension: 0.1,
+                  fill: true,
                 },
-                pan: {
-                  enabled: true,
-                  mode: "x",
+              ],
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                zoom: {
+                  zoom: {
+                    wheel: { enabled: true },
+                    pinch: { enabled: true },
+                    mode: "x",
+                  },
+                  pan: {
+                    enabled: true,
+                    mode: "x",
+                  },
                 },
               },
             },
-          },
-        });
+          });
+          weightChartInstance = chart;
+        } else {
+          const sortedDates = Object.keys(gymDates).sort();
+          const gymData = sortedDates.map(date => gymDates[date] === "green" ? 1 : 0);
+          const noGymData = sortedDates.map(date => gymDates[date] === "red" ? 1 : 0);
 
-        if (isWeight) weightChartInstance = chart;
-        else heightChartInstance = chart;
+          const chart = new Chart(ctx, {
+            type: "line",
+            data: {
+              labels: sortedDates.map(date => new Date(date).toLocaleDateString()),
+              datasets: [
+                {
+                  label: "Gym Visits",
+                  data: gymData,
+                  borderColor: "#10b981",
+                  backgroundColor: "#a7f3d0",
+                  borderWidth: 2,
+                  tension: 0.1,
+                  fill: true,
+                },
+                {
+                  label: "No Gym",
+                  data: noGymData,
+                  borderColor: "#ef4444",
+                  backgroundColor: "#fca5a5",
+                  borderWidth: 2,
+                  tension: 0.1,
+                  fill: true,
+                },
+              ],
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              scales: {
+                y: {
+                  beginAtZero: true,
+                  max: 1,
+                  ticks: {
+                    stepSize: 1,
+                    callback: (value) => value === 1 ? "Yes" : "No",
+                  },
+                },
+              },
+              plugins: {
+                zoom: {
+                  zoom: {
+                    wheel: { enabled: true },
+                    pinch: { enabled: true },
+                    mode: "x",
+                  },
+                  pan: {
+                    enabled: true,
+                    mode: "x",
+                  },
+                },
+              },
+            },
+          });
+          gymChartInstance = chart;
+        }
       };
 
       const fetchWeights = async () => {
@@ -126,26 +184,23 @@
         drawChart("weight");
       };
 
-      const fetchHeights = async () => {
+      const fetchGymDates = async () => {
         if (!currentUser) return;
-        const q = query(
-          collection(db, "heights"),
-          where("userId", "==", currentUser.uid),
-          orderBy("timestamp", "asc")
-        );
-        const snapshot = await getDocs(q);
-        heights = snapshot.docs.map((doc) => ({
-          height: doc.data().height,
-          timestamp: doc.data().timestamp.toDate(),
-        }));
-        drawChart("height");
+        const docRef = doc(db, "calendars", currentUser.uid);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          gymDates = docSnap.data().dates || {};
+          drawChart("gym");
+        } else {
+          gymDates = {};
+        }
       };
 
       const unsubscribe = onAuthStateChanged(auth, (user) => {
         if (user) {
           currentUser = user;
           fetchWeights();
-          fetchHeights();
+          fetchGymDates();
         } else {
           currentUser = null;
           goto("/");
@@ -155,7 +210,7 @@
       cleanup = () => {
         unsubscribe();
         if (weightChartInstance) weightChartInstance.destroy();
-        if (heightChartInstance) heightChartInstance.destroy();
+        if (gymChartInstance) gymChartInstance.destroy();
       };
     })();
 
@@ -170,16 +225,37 @@
     return "Obese";
   }
 
-  // Add these functions
-  function handleZoom(type: "weight" | "height", direction: "in" | "out") {
-    const chart = type === "weight" ? weightChartInstance : heightChartInstance;
+  function calculateConsecutiveGymDays(dates: { [key: string]: string }): number {
+    const sortedDates = Object.keys(dates).sort();
+    let streak = 0;
+    let currentDate = new Date();
+
+    // Start from today and work backwards
+    for (let i = sortedDates.length - 1; i >= 0; i--) {
+      const dateStr = sortedDates[i];
+      const date = new Date(dateStr);
+
+      // Check if the date is today or consecutive with the previous date
+      if (date.toDateString() === currentDate.toDateString() && dates[dateStr] === "green") {
+        streak++;
+        currentDate.setDate(currentDate.getDate() - 1);
+      } else {
+        break;
+      }
+    }
+
+    return streak;
+  }
+
+  function handleZoom(type: "weight" | "gym", direction: "in" | "out") {
+    const chart = type === "weight" ? weightChartInstance : gymChartInstance;
     if (!chart) return;
     const factor = direction === "in" ? 1.1 : 0.9;
     chart.zoom(factor, { x: true, y: false });
   }
 
-  function handleResetZoom(type: "weight" | "height") {
-    const chart = type === "weight" ? weightChartInstance : heightChartInstance;
+  function handleResetZoom(type: "weight" | "gym") {
+    const chart = type === "weight" ? weightChartInstance : gymChartInstance;
     chart?.resetZoom();
   }
 </script>
@@ -192,13 +268,13 @@
           Health Dashboard
         </h1>
         <p class="text-gray-600 dark:text-gray-300">
-          View your weight and height progress
+          View your weight and gym progress
         </p>
       </div>
-      <!-- Add DarkMode toggle -->
+      <DarkMode />
     </header>
 
-    <!-- Stats Overview - Updated for dark mode -->
+    <!-- Stats Overview -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8" transition:fade>
       <div
         class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700"
@@ -227,17 +303,6 @@
         class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700"
       >
         <h3 class="text-sm font-medium text-gray-500 dark:text-gray-300 mb-1">
-          Current Height
-        </h3>
-        <p class="text-2xl font-bold text-gray-900 dark:text-white">
-          {currentHeight ? `${heightInMeters} m` : "N/A"}
-        </p>
-      </div>
-
-      <div
-        class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700"
-      >
-        <h3 class="text-sm font-medium text-gray-500 dark:text-gray-300 mb-1">
           BMI
         </h3>
         <div class="flex items-baseline gap-2">
@@ -260,9 +325,51 @@
           {/if}
         </div>
       </div>
+
+      <div
+        class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700"
+      >
+        <h3 class="text-sm font-medium text-gray-500 dark:text-gray-300 mb-1">
+          Total Gym Days
+        </h3>
+        <p class="text-2xl font-bold text-gray-900 dark:text-white">
+          {totalGymDays} days
+        </p>
+        <p class="text-sm mt-1 dark:text-gray-400">
+          Tracked in calendar
+        </p>
+      </div>
+
+      <div
+        class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700"
+      >
+        <h3 class="text-sm font-medium text-gray-500 dark:text-gray-300 mb-1">
+          Current Gym Streak
+        </h3>
+        <p class="text-2xl font-bold text-gray-900 dark:text-white">
+          {consecutiveGymDays} days
+        </p>
+        <p class="text-sm mt-1 dark:text-gray-400">
+          Consecutive gym visits
+        </p>
+      </div>
+
+      <div
+        class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700"
+      >
+        <h3 class="text-sm font-medium text-gray-500 dark:text-gray-300 mb-1">
+          Gym Attendance
+        </h3>
+        <p class="text-2xl font-bold text-gray-900 dark:text-white">
+          {gymAttendancePercentage}%
+        </p>
+        <p class="text-sm mt-1 dark:text-gray-400">
+          Of tracked days
+        </p>
+      </div>
     </div>
 
-    <!-- Charts Section - Updated for dark mode -->
+    <!-- Charts Section -->
     <div class="grid grid-cols-1 gap-6">
       <div
         class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700"
@@ -341,16 +448,15 @@
         </div>
       </div>
 
-      <!-- Height Chart Section -->
       <div
         class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700"
         transition:fly={{ y: 20, delay: 100 }}
       >
         <div class="flex justify-between items-center mb-4">
-          <h2 class="text-lg font-semibold dark:text-white">Height Progress</h2>
+          <h2 class="text-lg font-semibold dark:text-white">Gym Attendance</h2>
           <div class="flex gap-1">
             <button
-              on:click={() => handleZoom("height", "in")}
+              on:click={() => handleZoom("gym", "in")}
               class="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
               title="Zoom In"
               aria-label="Zoom In"
@@ -371,7 +477,7 @@
               </svg>
             </button>
             <button
-              on:click={() => handleZoom("height", "out")}
+              on:click={() => handleZoom("gym", "out")}
               class="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
               title="Zoom Out"
               aria-label="Zoom Out"
@@ -392,7 +498,7 @@
               </svg>
             </button>
             <button
-              on:click={() => handleResetZoom("height")}
+              on:click={() => handleResetZoom("gym")}
               class="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
               title="Reset Zoom"
               aria-label="Reset Zoom"
@@ -415,7 +521,7 @@
           </div>
         </div>
         <div class="h-64">
-          <canvas bind:this={heightCanvas}></canvas>
+          <canvas bind:this={gymCanvas}></canvas>
         </div>
       </div>
     </div>

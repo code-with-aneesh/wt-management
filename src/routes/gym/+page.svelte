@@ -10,7 +10,8 @@
     startOfWeek, endOfWeek,
     eachDayOfInterval,
     differenceInDays,
-    parseISO
+    parseISO,
+    isAfter
   } from 'date-fns';
   import { fly } from 'svelte/transition';
 
@@ -36,7 +37,6 @@
 
     const auth = getAuth();
     const unsubscribeAuth = onAuthStateChanged(auth, (user: User | null) => {
-      // Clean up previous snapshot if any
       if (calendarDocRef) {
         // noop: snapshot unsubscribes are handled in its cleanup
       }
@@ -66,12 +66,10 @@
             isLoadingTrackedDates.set(false);
           }
         );
-        // Cleanup the snapshot when user changes or component unmounts
         return () => {
           unsubscribeSnapshot();
         };
       } else {
-        // No user logged in
         trackedDates.set({});
         isLoadingTrackedDates.set(false);
         calendarDocRef = null;
@@ -147,7 +145,7 @@
         case 'week': {
           const weekStart = startOfWeek($currentDate, { weekStartsOn: 0 });
           return eachDayOfInterval({ start: weekStart, end: endOfWeek($currentDate, { weekStartsOn: 0 }) })
-            .map(d => ({ date: d, isCurrentMonth: true }));
+            .map((d: Date) => ({ date: d, isCurrentMonth: true }));
         }
         case 'day':
           return [{ date: $currentDate, isCurrentMonth: true }];
@@ -187,20 +185,31 @@
   }
 
   function toggleDate(date: Date) {
+    const today = new Date();
+    // Prevent toggling future dates
+    if (isAfter(date, today)) {
+      console.warn('Cannot mark future dates');
+      return;
+    }
     const ds = formatDate(date);
     trackedDates.update(curr => {
       const cur = curr[ds];
       const next = cur === 'red' ? 'green' : cur === 'green' ? undefined : 'red';
-      const updated = next ? { ...curr, [ds]: next } : Object.fromEntries(Object.entries(curr).filter(([k]) => k !== ds));
+      let updated: Record<string, 'red' | 'green'>;
+      if (next) {
+        updated = { ...curr, [ds]: next };
+      } else {
+        updated = Object.fromEntries(
+          Object.entries(curr).filter(([k]) => k !== ds)
+        ) as Record<string, 'red' | 'green'>;
+      }
       saveTrackedDatesToFirestore(updated);
       return updated;
     });
   }
 </script>
 
-
 <div class="max-w-4xl mx-auto p-4 sm:p-6 bg-white dark:bg-gray-800 rounded-xl shadow-lg transition-all duration-300 text-gray-800 dark:text-white">
-
   {#if $isLoadingTrackedDates}
     <div class="text-center p-10 text-gray-500 dark:text-gray-400">
       <div class="animate-pulse">Loading calendar data...</div>
@@ -211,21 +220,22 @@
     </div>
   {/if}
 
-  {#if !$isLoadingTrackedDates}  <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+  {#if !$isLoadingTrackedDates}
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
       <div class="p-4 bg-red-100 dark:bg-red-900/50 rounded-lg shadow text-center transition-colors duration-200">
-        <div class="text-xs sm:text-sm font-medium text-red-600 dark:text-red-300 uppercase tracking-wide">Red Days</div>
+        <div class="text-xs sm:text-sm font-medium text-red-600 dark:text-red-300 uppercase tracking-wide">Missed Days</div>
         <div class="text-2xl sm:text-3xl font-bold text-red-800 dark:text-red-200 mt-1">
           {$summaryStats.redCount}
         </div>
       </div>
       <div class="p-4 bg-green-100 dark:bg-green-900/50 rounded-lg shadow text-center transition-colors duration-200">
-        <div class="text-xs sm:text-sm font-medium text-green-600 dark:text-green-300 uppercase tracking-wide">Green Days</div>
+        <div class="text-xs sm:text-sm font-medium text-green-600 dark:text-green-300 uppercase tracking-wide">Attended Days</div>
         <div class="text-2xl sm:text-3xl font-bold text-green-800 dark:text-green-200 mt-1">
           {$summaryStats.greenCount}
         </div>
       </div>
       <div class="p-4 bg-gray-100 dark:bg-gray-700 rounded-lg shadow text-center transition-colors duration-200">
-        <div class="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Unmarked (in Range)</div>
+        <div class="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Unmarked Days</div>
         <div class="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-white mt-1">
           {$summaryStats.unmarkedInRange}
         </div>
@@ -295,8 +305,9 @@
         {#each $calendarDays as dayInfo (formatDate(dayInfo.date))}
           {@const dateStr = formatDate(dayInfo.date)}
           {@const dayStatus = $trackedDates[dateStr]}
-          {@const isSelectable = ($selectedView === 'month' && dayInfo.isCurrentMonth) || $selectedView !== 'month'}
+          {@const isSelectable = (($selectedView === 'month' && dayInfo.isCurrentMonth) || $selectedView !== 'month') && !isAfter(dayInfo.date, new Date())}
           {@const today = isToday(dayInfo.date)}
+          {@const isFuture = isAfter(dayInfo.date, new Date())}
 
           <button
             on:click={() => isSelectable && toggleDate(dayInfo.date)}
@@ -304,15 +315,17 @@
             role="button"
             aria-pressed={!!dayStatus}
             aria-label={`
-              ${format(dayInfo.date, 'EEEE, MMMM do,yyyy')}
+              ${format(dayInfo.date, 'EEEE, MMMM do, yyyy')}
               ${dayStatus ? `- Marked ${dayStatus}` : ''}
-              ${!isSelectable ? '- (Inactive Date)' : ''}
+              ${!isSelectable ? isFuture ? '- (Future Date, Locked)' : '- (Inactive Date)' : ''}
               ${today ? '- Today' : ''}
             `}
             tabindex={isSelectable ? 0 : -1}
-            disabled={!isSelectable || $isLoadingTrackedDates} class:cursor-pointer={isSelectable}
-            class:cursor-default={!isSelectable}
-            class:opacity-50={(!dayInfo.isCurrentMonth && $selectedView === 'month') || $isLoadingTrackedDates}
+            disabled={!isSelectable || $isLoadingTrackedDates}
+            class:cursor-pointer={isSelectable}
+            class:cursor-not-allowed={isFuture}
+            class:cursor-default={!isSelectable && !isFuture}
+            class:opacity-50={(!dayInfo.isCurrentMonth && $selectedView === 'month') || $isLoadingTrackedDates || isFuture}
             class={`relative rounded-lg transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 focus:ring-blue-500 group
               ${$selectedView === 'day'
                 ? 'h-32 sm:h-40 flex flex-col items-center justify-center text-lg'
@@ -322,20 +335,24 @@
               }
               ${isSelectable && !$isLoadingTrackedDates
                 ? 'hover:bg-gray-100 dark:hover:bg-gray-700'
+                : isFuture
+                ? 'bg-gray-200 dark:bg-gray-900/60 text-gray-500 dark:text-gray-400'
                 : ''}
-              ${dayStatus === 'red'
+              ${dayStatus === 'red' && !isFuture
                 ? '!bg-red-100 dark:!bg-red-900/60 !text-red-800 dark:!text-red-200'
-                : dayStatus === 'green'
+                : dayStatus === 'green' && !isFuture
                 ? '!bg-green-100 dark:!bg-green-900/60 !text-green-800 dark:!text-green-200'
-                : today
+                : today && !isFuture
                 ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-semibold'
-                : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300'}
+                : !isFuture
+                ? 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300'
+                : ''}
             `}
           >
             {#if $selectedView !== 'month'}
               <span class={`block font-medium uppercase tracking-wider
                 text-[7px] sm:text-[9px] md:text-[10px] lg:text-xs
-                ${today && !dayStatus ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`}>
+                ${today && !dayStatus && !isFuture ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`}>
                 {format(dayInfo.date, 'EEE')}
               </span>
             {/if}
@@ -347,14 +364,14 @@
                     md:text-sm md:w-6 md:h-6
                     lg:text-base lg:w-7 lg:h-7`
                 }
-                ${today && !dayStatus ? 'bg-blue-500 !text-white' : ''}
-                ${dayStatus ? 'group-hover:bg-opacity-50 dark:group-hover:bg-opacity-50' : isSelectable && !$isLoadingTrackedDates ? 'group-hover:bg-gray-200 dark:group-hover:bg-gray-600' : ''}
-                ${dayStatus === 'red' ? 'group-hover:bg-red-200 dark:group-hover:bg-red-800/80' : ''}
-                ${dayStatus === 'green' ? 'group-hover:bg-green-200 dark:group-hover:bg-green-800/80' : ''}
+                ${today && !dayStatus && !isFuture ? 'bg-blue-500 !text-white' : ''}
+                ${dayStatus && !isFuture ? 'group-hover:bg-opacity-50 dark:group-hover:bg-opacity-50' : isSelectable && !$isLoadingTrackedDates ? 'group-hover:bg-gray-200 dark:group-hover:bg-gray-600' : ''}
+                ${dayStatus === 'red' && !isFuture ? 'group-hover:bg-red-200 dark:group-hover:bg-red-800/80' : ''}
+                ${dayStatus === 'green' && !isFuture ? 'group-hover:bg-green-200 dark:group-hover:bg-green-800/80' : ''}
               `}>
               {format(dayInfo.date, 'd')}
             </span>
-            {#if dayStatus && $selectedView !== 'day'}
+            {#if dayStatus && $selectedView !== 'day' && !isFuture}
               <div class="absolute left-1/2 -translate-x-1/2
                           bottom-0.5 sm:bottom-1 md:bottom-1.5">
                 <div class={`w-1 h-1 md:w-1.5 md:h-1.5 rounded-full ${
@@ -368,7 +385,8 @@
         {/each}
       </div>
     {/key}
-  {/if} </div>
+  {/if}
+</div>
 
 <style>
   .grid-cols-7 {
