@@ -23,14 +23,12 @@
     });
   }
 
-
   // Derived store for summary statistics
   const summaryStats = derived(
     trackedDates,
     ($trackedDates) => {
-      // Filter out entries that might have undefined values if localStorage had issues
       const entries = Object.entries($trackedDates).filter(
-          ([, color]) => color === 'red' || color === 'green'
+        ([, color]) => color === 'red' || color === 'green'
       );
 
       let redCount = 0;
@@ -40,11 +38,9 @@
       let lastMarkedDate: Date | null = null;
 
       if (entries.length === 0) {
-        // No dates marked
         return { redCount: 0, greenCount: 0, unmarkedInRange: 0 };
       }
 
-      // Use Set to easily get min/max timestamps
       const dateTimestamps = new Set<number>();
 
       entries.forEach(([dateString, color]) => {
@@ -54,22 +50,19 @@
           greenCount++;
         }
         try {
-            // Use parseISO for robust parsing of YYYY-MM-DD
-            // Add time (midday UTC) to avoid potential timezone issues when getting min/max
-            const date = parseISO(dateString + 'T12:00:00Z');
-            if (!isNaN(date.getTime())) { // Check if parsing was successful
-                 dateTimestamps.add(date.getTime());
-            } else {
-                console.warn(`Failed to parse date string: ${dateString}`);
-            }
+          const date = parseISO(dateString + 'T12:00:00Z'); // Add time to avoid timezone issues
+          if (!isNaN(date.getTime())) {
+            dateTimestamps.add(date.getTime());
+          } else {
+            console.warn(`Failed to parse date string: ${dateString}`);
+          }
         } catch (e) {
-            console.error(`Error parsing date string: ${dateString}`, e);
+          console.error(`Error parsing date string: ${dateString}`, e);
         }
       });
 
       if (dateTimestamps.size === 0) {
-         // If all parsing failed
-         return { redCount: 0, greenCount: 0, unmarkedInRange: 0 };
+        return { redCount: 0, greenCount: 0, unmarkedInRange: 0 };
       }
 
       const minTimestamp = Math.min(...dateTimestamps);
@@ -78,16 +71,9 @@
       firstMarkedDate = new Date(minTimestamp);
       lastMarkedDate = new Date(maxTimestamp);
 
-      // Calculate total days *in the range* (inclusive)
       const totalDaysInRange = differenceInDays(lastMarkedDate, firstMarkedDate) + 1;
-      // Count marked days *within this specific range* for unmarked calculation
-      // Note: redCount and greenCount are total counts overall, not just in range.
-      const totalMarkedCount = entries.length; // Use length of valid entries
-
-      unmarkedInRange = totalDaysInRange - totalMarkedCount;
-
-      // Ensure unmarked count isn't negative
-      unmarkedInRange = Math.max(0, unmarkedInRange);
+      const totalMarkedCount = entries.length;
+      unmarkedInRange = Math.max(0, totalDaysInRange - totalMarkedCount);
 
       return { redCount, greenCount, unmarkedInRange };
     }
@@ -101,48 +87,35 @@
         case 'month':
           const monthStart = startOfMonth($currentDate);
           const monthEnd = endOfMonth($currentDate);
-          // Ensure week starts on Sunday (getDay returns 0 for Sunday)
-          const startDayIndex = getDay(monthStart); // 0 = Sunday, 6 = Saturday
+          const startDayIndex = getDay(monthStart); // 0 = Sunday
           const daysInMonth = differenceInDays(monthEnd, monthStart) + 1;
-
           const days: Array<{ date: Date; isCurrentMonth: boolean }> = [];
-
-          // Days from previous month
           for (let i = startDayIndex; i > 0; i--) {
             days.push({ date: subDays(monthStart, i), isCurrentMonth: false });
           }
-
-          // Days from current month
           for (let i = 0; i < daysInMonth; i++) {
             days.push({ date: addDays(monthStart, i), isCurrentMonth: true });
           }
-
-          // Days from next month (fill up to 6 weeks = 42 cells)
-          // Determine if 5 or 6 rows are needed based on start day and month length
           const totalCells = startDayIndex + daysInMonth > 35 ? 42 : 35;
           const remaining = totalCells - days.length;
           for (let i = 1; i <= remaining; i++) {
             days.push({ date: addDays(monthEnd, i), isCurrentMonth: false });
           }
           return days;
-
         case 'week':
-          const weekStart = startOfWeek($currentDate, { weekStartsOn: 0 }); // 0 = Sunday
+          const weekStart = startOfWeek($currentDate, { weekStartsOn: 0 });
           return eachDayOfInterval({
             start: weekStart,
             end: endOfWeek($currentDate, { weekStartsOn: 0 })
-          }).map(date => ({ date, isCurrentMonth: true })); // All days in week view are "current"
-
+          }).map((date: Date) => ({ date, isCurrentMonth: true }));
         case 'day':
-          return [{ date: $currentDate, isCurrentMonth: true }]; // Only the current date
+          return [{ date: $currentDate, isCurrentMonth: true }];
       }
     }
   );
 
-  // Date formatting helper
   const formatDate = (date: Date) => format(date, 'yyyy-MM-dd');
 
-  // Navigation functions
   function navigate(direction: 'next' | 'prev') {
     currentDate.update($date => {
       const amount = direction === 'next' ? 1 : -1;
@@ -154,22 +127,37 @@
     });
   }
 
-  // Toggle date status - Correctly removes the key when unmarking
   function toggleDate(date: Date) {
     const dateString = formatDate(date);
     trackedDates.update(dates => {
       const current = dates[dateString];
       const newState = current === 'red' ? 'green' : current === 'green' ? undefined : 'red';
-
       if (newState) {
-        // Add or update the date
         return { ...dates, [dateString]: newState };
       } else {
-        // Remove the date completely when toggling from green to undefined
-        const { [dateString]: _, ...rest } = dates; // Use object destructuring to remove the key
+        const { [dateString]: _, ...rest } = dates;
         return rest;
       }
     });
+  }
+
+  // Helper function for the calendar title
+  function getCalendarTitle(date: Date, view: 'month' | 'week' | 'day'): string {
+    if (view === 'month') {
+      return format(date, 'MMMM yyyy');
+    } else if (view === 'week') {
+      const weekViewStart = startOfWeek(date, { weekStartsOn: 0 });
+      const weekViewEnd = endOfWeek(date, { weekStartsOn: 0 });
+      if (format(weekViewStart, 'yyyy') !== format(weekViewEnd, 'yyyy')) {
+          return `${format(weekViewStart, 'MMM dd, yyyy')} - ${format(weekViewEnd, 'MMM dd, yyyy')}`;
+      } else if (format(weekViewStart, 'MMM') !== format(weekViewEnd, 'MMM')) {
+          return `${format(weekViewStart, 'MMM dd')} - ${format(weekViewEnd, 'MMM dd, yyyy')}`;
+      } else {
+          return `${format(weekViewStart, 'MMM dd')} - ${format(weekViewEnd, 'dd, yyyy')}`;
+      }
+    } else { // day view
+      return format(date, 'EEEE, MMM dd, yyyy');
+    }
   }
 </script>
 
@@ -201,8 +189,7 @@
       <h1 class="text-xl sm:text-2xl font-bold whitespace-nowrap">
         {#key $selectedView + format($currentDate, 'yyyyMMdd')}
           <span transition:fly={{ y: -10, duration: 150 }}>
-            {format($currentDate, $selectedView === 'month' ? 'MMMM yyyy' :
-              $selectedView === 'week' ? `MMM dd${format(addDays($currentDate, 6), '-dd, yyyy')}` : 'EEEE, MMM dd, yyyy')}
+            {getCalendarTitle($currentDate, $selectedView)}
           </span>
         {/key}
       </h1>
@@ -231,14 +218,15 @@
     <div class="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1 gap-1">
       {#each ['month', 'week', 'day'] as view (view)}
         <button
-          on:click={() => selectedView.set(view)}
+          on:click={() => selectedView.set(view as 'month' | 'week' | 'day')}
           class={`px-3 py-1.5 rounded-md transition-all text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 dark:focus:ring-offset-gray-700 ${
             view === $selectedView
               ? 'bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 shadow-sm'
               : 'text-gray-600 dark:text-gray-300 hover:bg-white/60 dark:hover:bg-gray-800/30'
           }`}
         >
-          {view.charAt(0).toUpperCase() + view.slice(1)} </button>
+          {view.charAt(0).toUpperCase() + view.slice(1)}
+        </button>
       {/each}
     </div>
   </div>
@@ -256,7 +244,8 @@
         {/each}
       {/if}
 
-      {#each $calendarDays as dayInfo (formatDate(dayInfo.date))} {@const dateStr = formatDate(dayInfo.date)}
+      {#each $calendarDays as dayInfo (formatDate(dayInfo.date))}
+        {@const dateStr = formatDate(dayInfo.date)}
         {@const dayStatus = $trackedDates[dateStr]}
         {@const isSelectable = ($selectedView === 'month' && dayInfo.isCurrentMonth) || $selectedView !== 'month'}
         {@const today = isToday(dayInfo.date)}
@@ -264,7 +253,6 @@
         <button
           on:click={() => isSelectable && toggleDate(dayInfo.date)}
           on:keydown={(e) => e.key === 'Enter' && isSelectable && toggleDate(dayInfo.date)}
-          role="button"
           aria-pressed={!!dayStatus}
           aria-label={`
             ${format(dayInfo.date, 'EEEE, MMMM do, yyyy')}
@@ -278,7 +266,12 @@
           class:cursor-default={!isSelectable}
           class:opacity-50={!dayInfo.isCurrentMonth && $selectedView === 'month'}
           class={`relative rounded-lg transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 focus:ring-blue-500 group
-            ${$selectedView === 'day' ? 'h-32 sm:h-40 flex flex-col items-center justify-center text-lg' : 'aspect-square flex flex-col items-center justify-center p-1'}
+            ${$selectedView === 'day'
+              ? 'h-32 sm:h-40 flex flex-col items-center justify-center text-lg'
+              : `flex flex-col items-center justify-center text-center
+                 p-0.5 sm:p-1
+                 min-h-[2.25rem] sm:min-h-[3.5rem] md:min-h-[4rem] lg:min-h-[4.5rem] aspect-square`
+            }
             ${isSelectable
               ? 'hover:bg-gray-100 dark:hover:bg-gray-700'
               : ''}
@@ -286,34 +279,43 @@
               ? '!bg-red-100 dark:!bg-red-900/60 !text-red-800 dark:!text-red-200'
               : dayStatus === 'green'
               ? '!bg-green-100 dark:!bg-green-900/60 !text-green-800 dark:!text-green-200'
-              : today // Apply 'today' styling only if not red/green
+              : today
               ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-semibold'
               : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300'}
           `}
         >
           {#if $selectedView !== 'month'}
-            <span class="block text-[10px] sm:text-xs font-medium uppercase tracking-wider ${today && !dayStatus ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}">
+            <span class={`block font-medium uppercase tracking-wider
+              text-[7px] sm:text-[9px] md:text-[10px] lg:text-xs
+              ${today && !dayStatus ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`}>
               {format(dayInfo.date, 'EEE')}
             </span>
           {/if}
 
-          <span class={`block font-medium rounded-full transition-colors duration-150
-              ${$selectedView === 'day' ? 'text-4xl sm:text-5xl mt-1' : 'text-sm sm:text-base w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center mt-0.5'}
+          <span class={`block font-medium rounded-full transition-colors duration-150 flex items-center justify-center
+              ${$selectedView === 'day'
+                ? 'text-4xl sm:text-5xl mt-1'
+                : `text-[10px] w-4 h-4 mt-[1px]
+                   sm:text-xs sm:w-5 sm:h-5 sm:mt-0.5
+                   md:text-sm md:w-6 md:h-6
+                   lg:text-base lg:w-7 lg:h-7`
+              }
               ${today && !dayStatus ? 'bg-blue-500 !text-white' : ''}
               ${dayStatus ? 'group-hover:bg-opacity-50 dark:group-hover:bg-opacity-50' : isSelectable ? 'group-hover:bg-gray-200 dark:group-hover:bg-gray-600' : ''}
               ${dayStatus === 'red' ? 'group-hover:bg-red-200 dark:group-hover:bg-red-800/80' : ''}
               ${dayStatus === 'green' ? 'group-hover:bg-green-200 dark:group-hover:bg-green-800/80' : ''}
-           `}>
+            `}>
             {format(dayInfo.date, 'd')}
           </span>
 
           {#if dayStatus && $selectedView !== 'day'}
-            <div class="absolute bottom-1.5 left-1/2 -translate-x-1/2">
-              <div class={`w-1.5 h-1.5 rounded-full ${
+            <div class="absolute left-1/2 -translate-x-1/2
+                        bottom-0.5 sm:bottom-1 md:bottom-1.5">
+              <div class={`w-1 h-1 md:w-1.5 md:h-1.5 rounded-full ${
                 dayStatus === 'red'
                   ? 'bg-red-500'
                   : 'bg-green-500'
-              }`} />
+              }`}></div>
             </div>
           {/if}
         </button>
@@ -323,28 +325,13 @@
 
 </div>
 <style>
-  /* Ensure grid cells in month/week view have a minimum height */
   .grid-cols-7 {
     grid-template-columns: repeat(7, minmax(0, 1fr));
   }
-  .grid-cols-7 > button {
-      min-height: 4.5rem; /* Adjust as needed for your design */
-      height: 100%; /* Make buttons fill the cell height */
-  }
-
+  /* Removed the specific .grid-cols-7 > button style block
+     Height and min-height are now controlled by Tailwind utility classes on the button itself.
+  */
   .grid-cols-1 {
     grid-template-columns: repeat(1, minmax(0, 1fr));
   }
-
-  /* REMOVED the button:focus-visible rule as it's handled by utility classes */
-
-  /* Optional: If you still want a global focus style for elements *not*
-     using Tailwind's focus:ring utilities, you could use a hex code,
-     but it's generally better to stick to utility classes. */
-  /*
-  button:focus-visible, a:focus-visible {
-    outline: 2px solid #3b82f6; // Hardcoded hex for blue-500
-    outline-offset: 2px;
-  }
-  */
 </style>
