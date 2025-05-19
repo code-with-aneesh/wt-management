@@ -1,17 +1,19 @@
-import { initializeApp, getApps } from "firebase/app";
-import { 
-    getAuth, 
-    GoogleAuthProvider, 
-    signInWithPopup, 
-    signOut 
+// src/lib/firebase.ts
+import { initializeApp, getApps, type FirebaseApp } from "firebase/app";
+import {
+    getAuth,
+    GoogleAuthProvider,
+    signInWithPopup,
+    signOut,
+    type User as FirebaseUser
 } from "firebase/auth";
-import { 
-    getFirestore, 
-    doc, 
-    getDoc, 
-    setDoc 
+import {
+    getFirestore,
+    doc,
+    getDoc,
+    setDoc,
+    serverTimestamp // For more accurate timestamps
 } from "firebase/firestore";
-import { user } from "$lib/stores/authStore";
 
 // Firebase Config from .env
 const firebaseConfig = {
@@ -24,7 +26,7 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-let firebaseApp;
+let firebaseApp: FirebaseApp;
 if (!getApps().length) {
     firebaseApp = initializeApp(firebaseConfig);
 } else {
@@ -36,39 +38,47 @@ export const db = getFirestore(firebaseApp);
 export const googleProvider = new GoogleAuthProvider();
 
 // Sign in with Google and add user to Firestore if not exists
-export const loginWithGoogle = async () => {
+export const loginWithGoogle = async (): Promise<FirebaseUser | null> => {
     try {
         const result = await signInWithPopup(auth, googleProvider);
         const loggedInUser = result.user;
 
-        if (!loggedInUser) return;
+        if (!loggedInUser) {
+            throw new Error("No user returned from Google sign-in.");
+        }
 
-        // Reference to Firestore user document
         const userRef = doc(db, "users", loggedInUser.uid);
         const userSnap = await getDoc(userRef);
 
-        // If user does not exist, create a new document
         if (!userSnap.exists()) {
             await setDoc(userRef, {
                 uid: loggedInUser.uid,
                 name: loggedInUser.displayName || "Anonymous",
                 email: loggedInUser.email || "",
                 photoURL: loggedInUser.photoURL || "",
-                createdAt: new Date().toISOString(),
+                createdAt: serverTimestamp(), // Use Firestore server timestamp
+                lastLoginAt: serverTimestamp()
             });
+        } else {
+            // Optionally update lastLoginAt for existing users
+            await setDoc(userRef, { lastLoginAt: serverTimestamp() }, { merge: true });
         }
-
-        // Update the Svelte store with user data
-        user.set(loggedInUser);
-
+        // The authStore will automatically pick up the new user state via onAuthStateChanged
         return loggedInUser;
     } catch (error) {
         console.error("Login failed:", error);
+        // Depending on how you want to handle errors, you might re-throw or return null
+        return null; // Or throw error;
     }
 };
 
 // Sign out
-export const logout = async () => {
-    await signOut(auth);
-    user.set(null);
+export const logout = async (): Promise<void> => {
+    try {
+        await signOut(auth);
+        // The authStore will automatically pick up the null user state via onAuthStateChanged
+    } catch (error) {
+        console.error("Logout failed:", error);
+        // throw error; // Optionally re-throw
+    }
 };
