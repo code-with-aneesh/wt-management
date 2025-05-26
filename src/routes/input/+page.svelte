@@ -154,8 +154,8 @@
         return false;
       }
     } else {
-      const parsedFeet = parseFloat(feet);
-      const parsedInches = parseFloat(inches);
+      const parsedFeet = parseFloat(feet || "0");
+      const parsedInches = parseFloat(inches || "0");
 
       if (!feet && !inches) {
         heightError = "Height is required";
@@ -283,26 +283,27 @@
 </script>
 
 <div
-  class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-gray-900 dark:to-gray-800 flex items-start justify-center pt-[5vh] md:pt-[10vh] px-4"
+  class="min-h-screen bg-gray-100 dark:bg-gray-900 flex items-start justify-center pt-6 px-3 sm:pt-10 sm:px-4"
 >
   <Card
-    class="w-full max-w-2xl shadow-xl rounded-2xl dark:bg-gray-800 dark:border-gray-700"
+    class="w-full max-w-full sm:max-w-2xl shadow-lg rounded-xl dark:bg-gray-800 dark:border-gray-700 p-3 sm:p-6"
   >
-    <div class="flex justify-between items-center mb-8">
-      <h2 class="text-3xl font-bold text-center text-gray-800 dark:text-white">
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3 sm:gap-4">
+      <h2 class="text-lg sm:text-2xl font-semibold text-gray-800 dark:text-white">
         Health Metrics Tracker
       </h2>
+      <DarkMode class="text-gray-600 dark:text-gray-300 hover:scale-110 transition-transform" />
     </div>
 
-    <div class="grid md:grid-cols-2 gap-8">
+    <div class="grid md:grid-cols-2 gap-4 sm:gap-8">
       <!-- Left Column -->
       <div class="space-y-6">
         <!-- Weight Section -->
         <div class="animate-slide-in">
           <div class="flex justify-between items-center mb-2">
-            <Label class="text-lg font-semibold dark:text-gray-300">Weight (kg)</Label>
+            <Label class="text-base sm:text-lg font-semibold dark:text-gray-300">Weight (kg)</Label>
             {#if weightError}
-              <span class="text-red-600 dark:text-red-500 text-sm">{weightError}</span>
+              <span class="text-red-600 dark:text-red-500 text-xs sm:text-sm">{weightError}</span>
             {/if}
           </div>
           <Input
@@ -311,31 +312,46 @@
             placeholder="72.5"
             min="1"
             step="0.1"
-            class="rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400"
+            class="rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400 text-xs sm:text-base"
             on:blur={validateWeight}
           />
-          <Button
-            color="blue"
-            class="w-full mt-3 transform transition hover:scale-[1.02] dark:enabled:hover:bg-blue-700"
-            on:click={addWeight}
-            disabled={weightLoading || !weight}
-          >
-            {weightLoading ? "Saving..." : "Save Weight"}
-          </Button>
+          <div class="flex flex-col sm:flex-row gap-2 sm:gap-3 mt-3">
+            <Button
+              color="blue"
+              size="sm"
+              class="w-full transform transition hover:scale-[1.02] dark:enabled:hover:bg-blue-700 text-xs sm:text-base"
+              on:click={addWeight}
+              disabled={weightLoading || !weight}
+              aria-label="Save weight"
+            >
+              {weightLoading ? "Saving..." : "Save Weight"}
+            </Button>
+            <Button
+              color="light"
+              size="sm"
+              class="w-full transform transition hover:scale-[1.02] dark:enabled:hover:bg-gray-600 text-xs sm:text-base"
+              href="/updateweights"
+              disabled={weightLoading}
+              aria-label="View weight records"
+            >
+              View Weight Records
+            </Button>
+          </div>
           {#if weightAlert.show}
             <div class="mt-3 animate-fade-in">
               <Alert
                 color={weightAlert.type === "success" ? "green" : "red"}
-                class="shadow-lg rounded-lg dark:bg-gray-700 dark:border-gray-600"
+                class="shadow-md rounded-lg dark:bg-gray-700 dark:border-gray-600 text-xs sm:text-base"
+                dismissable
               >
                 <svelte:fragment slot="icon">
                   {#if weightAlert.type === "success"}
-                    <CheckCircleOutline class="w-6 h-6 dark:text-green-400" />
+                    <CheckCircleOutline class="w-4 h-4 sm:w-5 sm:h-5 dark:text-green-400" />
                   {:else}
-                    <ExclamationCircleOutline class="w-6 h-6 dark:text-red-400" />
+                    <ExclamationCircleOutline class="w-4 h-4 sm:w-5 sm:h-5 dark:text-red-400" />
                   {/if}
                 </svelte:fragment>
-                <span class="font-medium text-lg dark:text-white">{weightAlert.message}</span>
+                <span class="font-medium dark:text-white">{weightAlert.message}</span>
               </Alert>
             </div>
           {/if}
@@ -344,9 +360,9 @@
         <!-- Height Section -->
         <div class="animate-slide-in delay-100">
           <div class="flex justify-between items-center mb-2">
-            <Label class="text-lg font-semibold dark:text-gray-300">Height</Label>
+            <Label class="text-base sm:text-lg font-semibold dark:text-gray-300">Height</Label>
             {#if heightError}
-              <span class="text-red-600 dark:text-red-500 text-sm">{heightError}</span>
+              <span class="text-red-600 dark:text-red-500 text-xs sm:text-sm">{heightError}</span>
             {/if}
           </div>
           <div class="space-y-4">
@@ -356,7 +372,7 @@
                 value="true"
                 bind:group={useCm}
                 color="blue"
-                class="flex items-center gap-2 dark:text-gray-300"
+                class="flex items-center gap-2 dark:text-gray-300 text-xs sm:text-base"
               >
                 Centimeters
               </Radio>
@@ -365,7 +381,7 @@
                 value="false"
                 bind:group={useCm}
                 color="blue"
-                class="flex items-center gap-2 dark:text-gray-300"
+                class="flex items-center gap-2 dark:text-gray-300 text-xs sm:text-base"
               >
                 Feet & Inches
               </Radio>
@@ -376,7 +392,7 @@
                 bind:value={heightCm}
                 placeholder="175"
                 min="1"
-                class="dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400"
+                class="dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400 text-xs sm:text-base"
                 on:blur={validateHeight}
               />
             {:else}
@@ -386,7 +402,7 @@
                   bind:value={feet}
                   placeholder="Feet"
                   min="0"
-                  class="dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400"
+                  class="dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400 text-xs sm:text-base"
                   on:blur={validateHeight}
                 />
                 <Input
@@ -395,16 +411,18 @@
                   placeholder="Inches"
                   min="0"
                   max="11"
-                  class="dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400"
+                  class="dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400 text-xs sm:text-base"
                   on:blur={validateHeight}
                 />
               </div>
             {/if}
             <Button
               color="blue"
-              class="w-full transform transition hover:scale-[1.02] dark:enabled:hover:bg-blue-700"
+              size="sm"
+              class="w-full transform transition hover:scale-[1.02] dark:enabled:hover:bg-blue-700 text-xs sm:text-base"
               on:click={addHeight}
               disabled={heightLoading || (!heightCm && !feet && !inches)}
+              aria-label="Save height"
             >
               {heightLoading ? "Saving..." : "Save Height"}
             </Button>
@@ -412,54 +430,54 @@
               <div class="mt-3 animate-fade-in">
                 <Alert
                   color={heightAlert.type === "success" ? "green" : "red"}
-                  class="shadow-lg rounded-lg dark:bg-gray-700 dark:border-gray-600"
+                  class="shadow-md rounded-lg dark:bg-gray-700 dark:border-gray-600 text-xs sm:text-base"
+                  dismissable
                 >
                   <svelte:fragment slot="icon">
                     {#if heightAlert.type === "success"}
-                      <CheckCircleOutline class="w-6 h-6 dark:text-green-400" />
+                      <CheckCircleOutline class="w-4 h-4 sm:w-5 sm:h-5 dark:text-green-400" />
                     {:else}
-                      <ExclamationCircleOutline class="w-6 h-6 dark:text-red-400" />
-                    {/if}
-                  </svelte:fragment>
-                  <span class="font-medium text-lg dark:text-white">{heightAlert.message}</span>
-                </Alert>
-              </div>
-            {/if}
-          </div>
+                      <ExclamationCircleOutline class="w-4 h-4 sm:w-5 sm:h-5 dark:text-red-400" />
+                  {/if}
+                </svelte:fragment>
+                <span class="font-medium dark:text-white">{heightAlert.message}</span>
+              </Alert>
+            </div>
+          {/if}
         </div>
       </div>
 
       <!-- Right Column - Personal Details -->
       <div class="animate-slide-in delay-200">
-        <h3 class="text-xl font-semibold mb-6 text-gray-800 dark:text-white">
+        <h3 class="text-base sm:text-xl font-semibold mb-4 sm:mb-6 text-gray-800 dark:text-white">
           Personal Details
         </h3>
-        <div class="space-y-5">
+        <div class="space-y-4 sm:space-y-5">
           <div>
-            <Label class="block mb-2 dark:text-gray-300">Age</Label>
+            <Label class="block mb-2 dark:text-gray-300 text-xs sm:text-base">Age</Label>
             <Input
               type="number"
               bind:value={age}
               placeholder="28"
               min="18"
               max="120"
-              class="dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400"
+              class="dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400 text-xs sm:text-base"
               on:blur={validateAge}
             />
             {#if ageError}
-              <p class="text-red-600 dark:text-red-500 text-sm mt-1">{ageError}</p>
+              <p class="text-red-600 dark:text-red-500 text-xs sm:text-sm mt-1">{ageError}</p>
             {/if}
           </div>
 
           <div>
-            <Label class="block mb-2 dark:text-gray-300">Gender</Label>
+            <Label class="block mb-2 dark:text-gray-300 text-xs sm:text-base">Gender</Label>
             <div class="flex gap-4">
               <Radio
                 name="gender"
                 value="male"
                 bind:group={gender}
                 color="blue"
-                class="dark:text-gray-300"
+                class="dark:text-gray-300 text-xs sm:text-base"
               >
                 Male
               </Radio>
@@ -468,7 +486,7 @@
                 value="female"
                 bind:group={gender}
                 color="blue"
-                class="dark:text-gray-300"
+                class="dark:text-gray-300 text-xs sm:text-base"
               >
                 Female
               </Radio>
@@ -477,7 +495,7 @@
                 value="other"
                 bind:group={gender}
                 color="blue"
-                class="dark:text-gray-300"
+                class="dark:text-gray-300 text-xs sm:text-base"
               >
                 Other
               </Radio>
@@ -485,25 +503,25 @@
           </div>
 
           <div>
-            <Label class="block mb-2 dark:text-gray-300">Waist Circumference (cm)</Label>
+            <Label class="block mb-2 dark:text-gray-300 text-xs sm:text-base">Waist Circumference (cm)</Label>
             <Input
               type="number"
               bind:value={waist}
               placeholder="86.5"
               step="0.1"
-              class="dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400"
+              class="dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400 text-xs sm:text-base"
               on:blur={validateWaist}
             />
             {#if waistError}
-              <p class="text-red-600 dark:text-red-500 text-sm mt-1">{waistError}</p>
+              <p class="text-red-600 dark:text-red-500 text-xs sm:text-sm mt-1">{waistError}</p>
             {/if}
           </div>
 
           <div>
-            <Label class="block mb-2 dark:text-gray-300">Activity Level</Label>
+            <Label class="block mb-2 dark:text-gray-300 text-xs sm:text-base">Activity Level</Label>
             <Select
               bind:value={activityLevel}
-              class="rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              class="rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white text-xs sm:text-base"
             >
               <option value="" class="dark:bg-gray-700">Select activity level</option>
               <option value="sedentary" class="dark:bg-gray-700">Sedentary (little/no exercise)</option>
@@ -514,14 +532,16 @@
           </div>
 
           {#if profileError}
-            <p class="text-red-600 dark:text-red-500 text-sm">{profileError}</p>
+            <p class="text-red-600 dark:text-red-500 text-xs sm:text-sm">{profileError}</p>
           {/if}
 
           <Button
             color="green"
-            class="w-full mt-4 transform transition hover:scale-[1.02] dark:enabled:hover:bg-green-700"
+            size="sm"
+            class="w-full mt-4 transform transition hover:scale-[1.02] dark:enabled:hover:bg-green-700 text-xs sm:text-base"
             on:click={addProfile}
             disabled={profileLoading || !age || !gender || !waist || !activityLevel}
+            aria-label="Save profile"
           >
             {profileLoading ? "Saving..." : "Save Profile"}
           </Button>
@@ -529,16 +549,17 @@
             <div class="mt-3 animate-fade-in">
               <Alert
                 color={profileAlert.type === "success" ? "green" : "red"}
-                class="shadow-lg rounded-lg dark:bg-gray-700 dark:border-gray-600"
+                class="shadow-md rounded-lg dark:bg-gray-700 dark:border-gray-600 text-xs sm:text-base"
+                dismissable
               >
                 <svelte:fragment slot="icon">
                   {#if profileAlert.type === "success"}
-                    <CheckCircleOutline class="w-6 h-6 dark:text-green-400" />
+                    <CheckCircleOutline class="w-4 h-4 sm:w-5 sm:h-5 dark:text-green-400" />
                   {:else}
-                    <ExclamationCircleOutline class="w-6 h-6 dark:text-red-400" />
+                    <ExclamationCircleOutline class="w-4 h-4 sm:w-5 sm:h-5 dark:text-red-400" />
                   {/if}
                 </svelte:fragment>
-                <span class="font-medium text-lg dark:text-white">{profileAlert.message}</span>
+                <span class="font-medium dark:text-white">{profileAlert.message}</span>
               </Alert>
             </div>
           {/if}
