@@ -1,3 +1,4 @@
+
 <script lang="ts">
   import { onMount } from "svelte";
   import { DarkMode } from "flowbite-svelte";
@@ -30,7 +31,7 @@
 
   // Computed properties for weight
   $: currentWeight = weights.length ? weights[weights.length - 1].weight : null;
-  $: currentBMI = currentWeight ? (currentWeight / Math.pow(1.75, 2)).toFixed(2) : null; // Assuming average height of 1.75m since height data is removed
+  $: currentBMI = currentWeight ? (currentWeight / Math.pow(1.75, 2)).toFixed(2) : null; // Assuming average height of 1.75m
   $: bmiCategory = getBMICategory(Number(currentBMI));
 
   // Computed properties for gym attendance
@@ -108,58 +109,44 @@
           });
           weightChartInstance = chart;
         } else {
-          const sortedDates = Object.keys(gymDates).sort();
-          const gymData = sortedDates.map(date => gymDates[date] === "green" ? 1 : 0);
-          const noGymData = sortedDates.map(date => gymDates[date] === "red" ? 1 : 0);
+          const totalDays = Object.keys(gymDates).length;
+          const gymDays = Object.values(gymDates).filter(status => status === "green").length;
+          const noGymDays = totalDays - gymDays;
 
           const chart = new Chart(ctx, {
-            type: "line",
+            type: "pie",
             data: {
-              labels: sortedDates.map(date => new Date(date).toLocaleDateString()),
+              labels: ["Gym Visits", "No Gym"],
               datasets: [
                 {
-                  label: "Gym Visits",
-                  data: gymData,
-                  borderColor: "#10b981",
-                  backgroundColor: "#a7f3d0",
-                  borderWidth: 2,
-                  tension: 0.1,
-                  fill: true,
-                },
-                {
-                  label: "No Gym",
-                  data: noGymData,
-                  borderColor: "#ef4444",
-                  backgroundColor: "#fca5a5",
-                  borderWidth: 2,
-                  tension: 0.1,
-                  fill: true,
+                  data: [gymDays, noGymDays],
+                  backgroundColor: ["#10b981", "#ef4444"],
+                  borderColor: ["#a7f3d0", "#fca5a5"],
+                  borderWidth: 1,
                 },
               ],
             },
             options: {
               responsive: true,
               maintainAspectRatio: false,
-              scales: {
-                y: {
-                  beginAtZero: true,
-                  max: 1,
-                  ticks: {
-                    stepSize: 1,
-                    callback: (value) => value === 1 ? "Yes" : "No",
+              plugins: {
+                legend: {
+                  position: "top",
+                  labels: {
+                    color: "#374151", // dark:text-gray-300
+                    font: {
+                      size: 14,
+                    },
                   },
                 },
-              },
-              plugins: {
-                zoom: {
-                  zoom: {
-                    wheel: { enabled: true },
-                    pinch: { enabled: true },
-                    mode: "x",
-                  },
-                  pan: {
-                    enabled: true,
-                    mode: "x",
+                tooltip: {
+                  callbacks: {
+                    label: (context) => {
+                      const label = context.label || "";
+                      const value = context.raw as number;
+                      const percentage = totalDays > 0 ? ((value / totalDays) * 100).toFixed(1) : 0;
+                      return `${label}: ${value} days (${percentage}%)`;
+                    },
                   },
                 },
               },
@@ -271,7 +258,6 @@
           View your weight and gym progress
         </p>
       </div>
-      
     </header>
 
     <!-- Stats Overview -->
@@ -454,71 +440,6 @@
       >
         <div class="flex justify-between items-center mb-4">
           <h2 class="text-lg font-semibold dark:text-white">Gym Attendance</h2>
-          <div class="flex gap-1">
-            <button
-              on:click={() => handleZoom("gym", "in")}
-              class="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-              title="Zoom In"
-              aria-label="Zoom In"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                class="w-5 h-5 text-gray-600 dark:text-gray-300"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                />
-              </svg>
-            </button>
-            <button
-              on:click={() => handleZoom("gym", "out")}
-              class="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-              title="Zoom Out"
-              aria-label="Zoom Out"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                class="w-5 h-5 text-gray-600 dark:text-gray-300"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M18 12H6"
-                />
-              </svg>
-            </button>
-            <button
-              on:click={() => handleResetZoom("gym")}
-              class="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-              title="Reset Zoom"
-              aria-label="Reset Zoom"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                class="w-5 h-5 text-gray-600 dark:text-gray-300"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"
-                />
-              </svg>
-            </button>
-          </div>
         </div>
         <div class="h-64">
           <canvas bind:this={gymCanvas}></canvas>
