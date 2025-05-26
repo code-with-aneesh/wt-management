@@ -73,6 +73,12 @@
                 Gym Tracker
               </a>
               <a
+                href="/blog"
+                class="text-gray-100 dark:text-gray-300 hover:text-gray-300 dark:hover:text-white font-medium text-sm transition-colors duration-200"
+              >
+                Blog
+              </a>
+              <a
                 href="/bmi"
                 class="text-gray-100 dark:text-gray-300 hover:text-gray-300 dark:hover:text-white font-medium text-sm transition-colors duration-200"
               >
@@ -180,6 +186,13 @@
               on:click={toggleMenu}
             >
               Dashboard
+            </a>
+            <a
+              href="/blog"
+              class="text-gray-100 dark:text-gray-300 hover:text-gray-400 dark:hover:text-white py-2 transition-colors"
+              on:click={toggleMenu}
+            >
+              Blog
             </a>
             <a
               href="/gym"
