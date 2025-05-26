@@ -58,7 +58,8 @@
   
     // Sanitize markdown output
     function renderMarkdown(content: string): string {
-      const rawHtml = marked(content);
+      // Ensure marked is used synchronously
+      const rawHtml = marked.parse(content);
       return DOMPurify.sanitize(rawHtml);
     }
   
