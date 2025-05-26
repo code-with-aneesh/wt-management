@@ -250,7 +250,7 @@
         return;
       }
 
-      currentUser = user;
+      currentUser = { uid: user.uid, displayName: user.displayName ?? undefined };
       const postId = get(page).params.id;
 
       if (!postId) {
@@ -499,13 +499,6 @@
     color: #2563eb;
   }
 
-  .dark .markdown-content :global(a) {
-    color: #60a5fa;
-  }
-
-  .dark .markdown-content :global(a:hover) {
-    color: #3b82f6;
-  }
 
   @media (max-width: 640px) {
     .markdown-content :global(h1) {

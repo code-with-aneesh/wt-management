@@ -271,7 +271,7 @@
           View your weight and gym progress
         </p>
       </div>
-      <DarkMode />
+      
     </header>
 
     <!-- Stats Overview -->

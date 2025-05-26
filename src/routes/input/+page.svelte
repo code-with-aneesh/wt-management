@@ -43,10 +43,10 @@
   let heightLoading = false;
   let profileLoading = false;
 
-  // Alert state
-  let showAlert = false;
-  let alertMessage = "";
-  let alertType: "success" | "error" = "success";
+  // Alert states for each section
+  let weightAlert = { show: false, message: "", type: "success" as "success" | "error" };
+  let heightAlert = { show: false, message: "", type: "success" as "success" | "error" };
+  let profileAlert = { show: false, message: "", type: "success" as "success" | "error" };
 
   // Input validation
   let weightError = "";
@@ -66,14 +66,20 @@
     });
   });
 
-  function showMessage(message: string, type: "success" | "error") {
-    alertMessage = message;
-    alertType = type;
-    showAlert = true;
-    setTimeout(() => (showAlert = false), 5000);
+  function showMessage(section: "weight" | "height" | "profile", message: string, type: "success" | "error") {
+    if (section === "weight") {
+      weightAlert = { show: true, message, type };
+      setTimeout(() => (weightAlert.show = false), 5000);
+    } else if (section === "height") {
+      heightAlert = { show: true, message, type };
+      setTimeout(() => (heightAlert.show = false), 5000);
+    } else if (section === "profile") {
+      profileAlert = { show: true, message, type };
+      setTimeout(() => (profileAlert.show = false), 5000);
+    }
   }
 
-  // Validation functions
+  // Validation functions (unchanged)
   function validateWeight(): boolean {
     const parsedWeight = parseFloat(weight);
     if (!weight) {
@@ -188,10 +194,10 @@
         userId: currentUser.uid,
       });
       weight = "";
-      showMessage("Weight recorded successfully!", "success");
+      showMessage("weight", "Weight recorded successfully!", "success");
     } catch (error) {
       console.error("Error adding weight: ", error);
-      showMessage("Failed to record weight. Please try again.", "error");
+      showMessage("weight", "Failed to record weight. Please try again.", "error");
     } finally {
       weightLoading = false;
     }
@@ -222,16 +228,14 @@
       heightCm = "";
       feet = "";
       inches = "";
-      showMessage("Height recorded successfully!", "success");
+      showMessage("height", "Height recorded successfully!", "success");
     } catch (error) {
       console.error("Error adding height: ", error);
-      showMessage("Failed to record height. Please try again.", "error");
+      showMessage("height", "Failed to record height. Please try again.", "error");
     } finally {
       heightLoading = false;
     }
   }
-
-  // Existing height validation remains the same
 
   async function addProfile() {
     if (!currentUser) {
@@ -239,7 +243,6 @@
       return;
     }
 
-    // Validate individual fields first
     const ageValid = validateAge();
     const waistValid = validateWaist();
     const genderValid = !!gender;
@@ -255,7 +258,7 @@
       await setDoc(
         doc(db, "profiles", currentUser.uid),
         {
-          userId: currentUser.uid, // Explicitly store user ID
+          userId: currentUser.uid,
           age: parseInt(age),
           gender,
           waist: parseFloat(waist),
@@ -265,20 +268,18 @@
         { merge: true }
       );
 
-      // Clear errors on success
       ageError = "";
       waistError = "";
       profileError = "";
-      showMessage("Profile updated successfully!", "success");
+      showMessage("profile", "Profile updated successfully!", "success");
     } catch (error) {
       console.error("Error updating profile: ", error);
       profileError = "Failed to save profile. Please try again.";
-      showMessage("Failed to update profile. Please try again.", "error");
+      showMessage("profile", "Failed to update profile. Please try again.", "error");
     } finally {
       profileLoading = false;
     }
   }
-  // Existing addWeight and addHeight functions remain the same
 </script>
 
 <div
@@ -287,7 +288,6 @@
   <Card
     class="w-full max-w-2xl shadow-xl rounded-2xl dark:bg-gray-800 dark:border-gray-700"
   >
-    <!-- Header Section with Dark Mode Toggle -->
     <div class="flex justify-between items-center mb-8">
       <h2 class="text-3xl font-bold text-center text-gray-800 dark:text-white">
         Health Metrics Tracker
@@ -300,13 +300,9 @@
         <!-- Weight Section -->
         <div class="animate-slide-in">
           <div class="flex justify-between items-center mb-2">
-            <Label class="text-lg font-semibold dark:text-gray-300"
-              >Weight (kg)</Label
-            >
+            <Label class="text-lg font-semibold dark:text-gray-300">Weight (kg)</Label>
             {#if weightError}
-              <span class="text-red-600 dark:text-red-500 text-sm"
-                >{weightError}</span
-              >
+              <span class="text-red-600 dark:text-red-500 text-sm">{weightError}</span>
             {/if}
           </div>
           <Input
@@ -326,18 +322,31 @@
           >
             {weightLoading ? "Saving..." : "Save Weight"}
           </Button>
+          {#if weightAlert.show}
+            <div class="mt-3 animate-fade-in">
+              <Alert
+                color={weightAlert.type === "success" ? "green" : "red"}
+                class="shadow-lg rounded-lg dark:bg-gray-700 dark:border-gray-600"
+              >
+                <svelte:fragment slot="icon">
+                  {#if weightAlert.type === "success"}
+                    <CheckCircleOutline class="w-6 h-6 dark:text-green-400" />
+                  {:else}
+                    <ExclamationCircleOutline class="w-6 h-6 dark:text-red-400" />
+                  {/if}
+                </svelte:fragment>
+                <span class="font-medium text-lg dark:text-white">{weightAlert.message}</span>
+              </Alert>
+            </div>
+          {/if}
         </div>
 
         <!-- Height Section -->
         <div class="animate-slide-in delay-100">
           <div class="flex justify-between items-center mb-2">
-            <Label class="text-lg font-semibold dark:text-gray-300"
-              >Height</Label
-            >
+            <Label class="text-lg font-semibold dark:text-gray-300">Height</Label>
             {#if heightError}
-              <span class="text-red-600 dark:text-red-500 text-sm"
-                >{heightError}</span
-              >
+              <span class="text-red-600 dark:text-red-500 text-sm">{heightError}</span>
             {/if}
           </div>
           <div class="space-y-4">
@@ -399,6 +408,23 @@
             >
               {heightLoading ? "Saving..." : "Save Height"}
             </Button>
+            {#if heightAlert.show}
+              <div class="mt-3 animate-fade-in">
+                <Alert
+                  color={heightAlert.type === "success" ? "green" : "red"}
+                  class="shadow-lg rounded-lg dark:bg-gray-700 dark:border-gray-600"
+                >
+                  <svelte:fragment slot="icon">
+                    {#if heightAlert.type === "success"}
+                      <CheckCircleOutline class="w-6 h-6 dark:text-green-400" />
+                    {:else}
+                      <ExclamationCircleOutline class="w-6 h-6 dark:text-red-400" />
+                    {/if}
+                  </svelte:fragment>
+                  <span class="font-medium text-lg dark:text-white">{heightAlert.message}</span>
+                </Alert>
+              </div>
+            {/if}
           </div>
         </div>
       </div>
@@ -421,9 +447,7 @@
               on:blur={validateAge}
             />
             {#if ageError}
-              <p class="text-red-600 dark:text-red-500 text-sm mt-1">
-                {ageError}
-              </p>
+              <p class="text-red-600 dark:text-red-500 text-sm mt-1">{ageError}</p>
             {/if}
           </div>
 
@@ -461,9 +485,7 @@
           </div>
 
           <div>
-            <Label class="block mb-2 dark:text-gray-300"
-              >Waist Circumference (cm)</Label
-            >
+            <Label class="block mb-2 dark:text-gray-300">Waist Circumference (cm)</Label>
             <Input
               type="number"
               bind:value={waist}
@@ -473,9 +495,7 @@
               on:blur={validateWaist}
             />
             {#if waistError}
-              <p class="text-red-600 dark:text-red-500 text-sm mt-1">
-                {waistError}
-              </p>
+              <p class="text-red-600 dark:text-red-500 text-sm mt-1">{waistError}</p>
             {/if}
           </div>
 
@@ -485,21 +505,11 @@
               bind:value={activityLevel}
               class="rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
             >
-              <option value="" class="dark:bg-gray-700"
-                >Select activity level</option
-              >
-              <option value="sedentary" class="dark:bg-gray-700"
-                >Sedentary (little/no exercise)</option
-              >
-              <option value="light" class="dark:bg-gray-700"
-                >Lightly Active (light exercise 1-3 days/week)</option
-              >
-              <option value="moderate" class="dark:bg-gray-700"
-                >Moderately Active (moderate exercise 3-5 days/week)</option
-              >
-              <option value="active" class="dark:bg-gray-700"
-                >Very Active (intense exercise 6-7 days/week)</option
-              >
+              <option value="" class="dark:bg-gray-700">Select activity level</option>
+              <option value="sedentary" class="dark:bg-gray-700">Sedentary (little/no exercise)</option>
+              <option value="light" class="dark:bg-gray-700">Lightly Active (light exercise 1-3 days/week)</option>
+              <option value="moderate" class="dark:bg-gray-700">Moderately Active (moderate exercise 3-5 days/week)</option>
+              <option value="active" class="dark:bg-gray-700">Very Active (intense exercise 6-7 days/week)</option>
             </Select>
           </div>
 
@@ -511,37 +521,30 @@
             color="green"
             class="w-full mt-4 transform transition hover:scale-[1.02] dark:enabled:hover:bg-green-700"
             on:click={addProfile}
-            disabled={profileLoading ||
-              !age ||
-              !gender ||
-              !waist ||
-              !activityLevel}
+            disabled={profileLoading || !age || !gender || !waist || !activityLevel}
           >
             {profileLoading ? "Saving..." : "Save Profile"}
           </Button>
+          {#if profileAlert.show}
+            <div class="mt-3 animate-fade-in">
+              <Alert
+                color={profileAlert.type === "success" ? "green" : "red"}
+                class="shadow-lg rounded-lg dark:bg-gray-700 dark:border-gray-600"
+              >
+                <svelte:fragment slot="icon">
+                  {#if profileAlert.type === "success"}
+                    <CheckCircleOutline class="w-6 h-6 dark:text-green-400" />
+                  {:else}
+                    <ExclamationCircleOutline class="w-6 h-6 dark:text-red-400" />
+                  {/if}
+                </svelte:fragment>
+                <span class="font-medium text-lg dark:text-white">{profileAlert.message}</span>
+              </Alert>
+            </div>
+          {/if}
         </div>
       </div>
     </div>
-
-    <!-- Alert Notification -->
-    {#if showAlert}
-      <div class="mt-6 animate-fade-in">
-        <Alert
-          color={alertType === "success" ? "green" : "red"}
-          class="shadow-lg rounded-lg dark:bg-gray-700 dark:border-gray-600"
-        >
-          <svelte:fragment slot="icon">
-            {#if alertType === "success"}
-              <CheckCircleOutline class="w-6 h-6 dark:text-green-400" />
-            {:else}
-              <ExclamationCircleOutline class="w-6 h-6 dark:text-red-400" />
-            {/if}
-          </svelte:fragment>
-          <span class="font-medium text-lg dark:text-white">{alertMessage}</span
-          >
-        </Alert>
-      </div>
-    {/if}
   </Card>
 </div>
 

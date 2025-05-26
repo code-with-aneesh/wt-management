@@ -114,7 +114,7 @@
         goto("/");
         return;
       }
-      currentUser = user;
+      currentUser = { uid: user.uid, displayName: user.displayName ?? undefined };
 
       try {
         // Fetch posts
@@ -345,9 +345,6 @@
 <style>
   /* Markdown content styling (applied to plain text in this case) */
   .text-gray-700 {
-    margin-bottom: 1rem;
-  }
-  .dark .text-gray-200 {
     margin-bottom: 1rem;
   }
 </style>
