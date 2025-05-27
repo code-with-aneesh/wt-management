@@ -246,7 +246,7 @@
 
   <!-- Main Content -->
   <main
-    class="container mx-auto px-4 py-8 dark:bg-gray-900 dark:text-gray-300 min-h-[calc(100vh-4rem)]"
+    class="container mx-auto dark:bg-gray-900 dark:text-gray-300 min-h-[calc(100vh-4rem)]"
   >
     <slot />
   </main>

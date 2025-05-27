@@ -209,7 +209,7 @@
   }
 </script>
 
-<div class="max-w-4xl mx-auto p-4 sm:p-6 bg-white dark:bg-gray-800 rounded-xl shadow-lg transition-all duration-300 text-gray-800 dark:text-white">
+<div class="max-w-4xl mx-auto mt-6 py-6 p-4 sm:p-6 sm:pt-8 bg-white dark:bg-gray-800 rounded-xl shadow-lg transition-all duration-300 text-gray-800 dark:text-white" >
   {#if $isLoadingTrackedDates}
     <div class="text-center p-10 text-gray-500 dark:text-gray-400">
       <div class="animate-pulse">Loading calendar data...</div>
