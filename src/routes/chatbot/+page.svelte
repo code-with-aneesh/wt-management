@@ -417,4 +417,10 @@
     line-height: 1.6;
   }
 
+  /* Push footer upward on mobile screens */
+  @media (max-width: 640px) {
+    footer {
+      margin-top: -1.5rem; /* Increased from -mt-4 (1rem) to -mt-6 (1.5rem) for mobile */
+    }
+  }
 </style>
