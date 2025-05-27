@@ -181,7 +181,11 @@
   onMount(() => {
     onAuthStateChanged(auth, (user) => {
       if (user) {
-        currentUser = user;
+        currentUser = {
+          uid: user.uid,
+          displayName: user.displayName ?? undefined,
+          photoURL: user.photoURL ?? undefined,
+        };
         loadChatHistory();
       } else {
         currentUser = null;
@@ -413,55 +417,4 @@
     line-height: 1.6;
   }
 
-  .markdown-content h1,
-  .markdown-content h2,
-  .markdown-content h3 {
-    font-weight: bold;
-    margin: 0.5em 0;
-  }
-
-  .markdown-content h1 {
-    font-size: 1.5em;
-  }
-
-  .markdown-content h2 {
-    font-size: 1.25em;
-  }
-
-  .markdown-content h3 {
-    font-size: 1em;
-  }
-
-  .markdown-content ul,
-  .markdown-content ol {
-    margin: 0.5em 0;
-    padding-left: 1.5em;
-  }
-
-  .markdown-content li {
-    margin-bottom: 0.25em;
-  }
-
-  .markdown-content p {
-    margin: 0.5em 0;
-  }
-
-  .markdown-content code {
-    background-color: rgba(0, 0, 0, 0.1);
-    padding: 0.2em 0.4em;
-    border-radius: 4px;
-    font-family: monospace;
-  }
-
-  .markdown-content pre {
-    background-color: rgba(0, 0, 0, 0.1);
-    padding: 1em;
-    border-radius: 4px;
-    overflow-x: auto;
-  }
-
-  .dark .markdown-content code,
-  .dark .markdown-content pre {
-    background-color: rgba(255, 255, 255, 0.1);
-  }
 </style>
