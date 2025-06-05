@@ -2,6 +2,8 @@ import { error, json } from '@sveltejs/kit';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { env } from '$env/dynamic/private';
 
+export const prerender = false; // Disable prerendering for this route
+
 export async function POST({ request }) {
   try {
     const { prompt } = await request.json();
