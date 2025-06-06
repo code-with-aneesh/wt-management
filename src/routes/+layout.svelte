@@ -7,6 +7,7 @@
   import { onDestroy } from "svelte";
   import { fade, slide } from "svelte/transition";
   import { cubicOut } from "svelte/easing";
+  import { pwaInfo } from 'virtual:pwa-info'; 
 
   let currentUser: { displayName: string; photoURL: string } | null = null;
   let menuOpen = false;
@@ -31,9 +32,12 @@
   function toggleMenu() {
     menuOpen = !menuOpen;
   }
+
+  $: webManifestLink = pwaInfo ? pwaInfo.webManifest.linkTag : '' 
 </script>
 
 <svelte:head>
+  {@html webManifestLink}
   <link
     href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
     rel="stylesheet"
@@ -72,12 +76,7 @@
               >
                 Gym Tracker
               </a>
-              <a
-                href="/blog"
-                class="text-gray-100 dark:text-gray-300 hover:text-gray-300 dark:hover:text-white font-medium text-sm transition-colors duration-200"
-              >
-                Blog
-              </a>
+        
               <a
                 href="/bmi"
                 class="text-gray-100 dark:text-gray-300 hover:text-gray-300 dark:hover:text-white font-medium text-sm transition-colors duration-200"
@@ -187,13 +186,7 @@
             >
               Dashboard
             </a>
-            <a
-              href="/blog"
-              class="text-gray-100 dark:text-gray-300 hover:text-gray-400 dark:hover:text-white py-2 transition-colors"
-              on:click={toggleMenu}
-            >
-              Blog
-            </a>
+      
             <a
               href="/gym"
               class="text-gray-100 dark:text-gray-300 hover:text-gray-400 dark:hover:text-white py-2 transition-colors"
