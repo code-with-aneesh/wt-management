@@ -9,6 +9,7 @@ export default defineConfig({
         sveltekit(),
         SvelteKitPWA({
             registerType: 'autoUpdate',
+            manifest: false,
             includeAssets: ['favicon.svg', 'favicon.ico', 'robots.txt', 'apple-touch-icon.png'],
         })
     ],
