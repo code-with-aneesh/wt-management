@@ -219,7 +219,6 @@
           Current Leaderboard
         </h1>
       </div>
-      <DarkMode />
     </header>
 
     {#if isLoading}

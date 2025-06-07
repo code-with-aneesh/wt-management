@@ -75,7 +75,12 @@
               >
                 Gym Tracker
               </a>
-        
+              <a
+                href="/leaderboard"
+                class="text-gray-100 dark:text-gray-300 hover:text-gray-300 dark:hover:text-white font-medium text-sm transition-colors duration-200"
+              >
+                Leaderboard
+              </a>
               <a
                 href="/bmi"
                 class="text-gray-100 dark:text-gray-300 hover:text-gray-300 dark:hover:text-white font-medium text-sm transition-colors duration-200"
@@ -198,6 +203,13 @@
               on:click={toggleMenu}
             >
               Gym Tracker
+            </a>
+            <a
+              href="/leaderboard"
+              class="text-gray-100 dark:text-gray-300 hover:text-gray-400 dark:hover:text-white py-2 transition-colors"
+              on:click={toggleMenu}
+            >
+              Leaderboard
             </a>
             <a
               href="/bmi"
