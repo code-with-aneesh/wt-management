@@ -7,7 +7,6 @@
   import { onDestroy } from "svelte";
   import { fade, slide } from "svelte/transition";
   import { cubicOut } from "svelte/easing";
-  import { pwaInfo } from 'virtual:pwa-info'; 
 
   let currentUser: { displayName: string; photoURL: string } | null = null;
   let menuOpen = false;
@@ -33,7 +32,7 @@
     menuOpen = !menuOpen;
   }
 
-  $: webManifestLink = pwaInfo ? pwaInfo.webManifest.linkTag : '' 
+
 </script>
 
 <svelte:head>
