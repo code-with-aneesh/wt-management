@@ -51,26 +51,29 @@ export const loginWithGoogle = async (): Promise<FirebaseUser | null> => {
         const userSnap = await getDoc(userRef);
 
         if (!userSnap.exists()) {
+            // If no document exists for this uid, create it
             await setDoc(userRef, {
                 uid: loggedInUser.uid,
                 name: loggedInUser.displayName || "Anonymous",
                 email: loggedInUser.email || "",
                 photoURL: loggedInUser.photoURL || "",
-                createdAt: serverTimestamp(), // Use Firestore server timestamp
+                createdAt: serverTimestamp(),
                 lastLoginAt: serverTimestamp()
             });
         } else {
-            // Optionally update lastLoginAt for existing users
-            await setDoc(userRef, { lastLoginAt: serverTimestamp() }, { merge: true });
+            // Update last login timestamp for existing users
+            await setDoc(userRef, {
+                lastLoginAt: serverTimestamp()
+            }, { merge: true });
         }
-        // The authStore will automatically pick up the new user state via onAuthStateChanged
+
         return loggedInUser;
     } catch (error) {
         console.error("Login failed:", error);
-        // Depending on how you want to handle errors, you might re-throw or return null
-        return null; // Or throw error;
+        return null;
     }
 };
+
 
 // Sign out
 export const logout = async (): Promise<void> => {
