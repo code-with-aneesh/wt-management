@@ -58,28 +58,64 @@
     if (!currentUser) return;
     weightLoading = true;
     try {
-      console.log("Fetching weights for user:", currentUser.uid, "Sort:", sortBy, sortOrder);
-      const [field, order] = sortBy.split("-");
-      const q = query(
-        collection(db, "weights"),
-        where("userId", "==", currentUser.uid),
-        orderBy(field, order as "asc" | "desc")
-      );
-      const snapshot = await getDocs(q);
-      weights = snapshot.empty
-        ? []
-        : snapshot.docs.map((doc) => ({
-            id: doc.id,
-            weight: doc.data().weight,
-            timestamp: doc.data().timestamp?.toDate() || new Date(),
-          }));
+      let q;
+
+      // Try to fetch with Firestore sorting
+      try {
+        q = query(
+          collection(db, "weights"),
+          where("userId", "==", currentUser.uid),
+          orderBy(sortBy, sortOrder as "asc" | "desc")
+        );
+        const snapshot = await getDocs(q);
+        weights = snapshot.empty
+          ? []
+          : snapshot.docs.map((doc) => {
+              const data = doc.data();
+              return {
+                id: doc.id,
+                weight: data.weight,
+                timestamp: data.timestamp?.toDate() || new Date(),
+              };
+            });
+      } catch (firestoreError: any) {
+        // Fallback to fetching without sorting and sort client-side
+        q = query(collection(db, "weights"), where("userId", "==", currentUser.uid));
+        const snapshot = await getDocs(q);
+        weights = snapshot.empty
+          ? []
+          : snapshot.docs.map((doc) => {
+              const data = doc.data();
+              return {
+                id: doc.id,
+                weight: data.weight,
+                timestamp: data.timestamp?.toDate() || new Date(),
+              };
+            });
+
+        // Client-side sorting
+        weights = weights.sort((a, b) => {
+          const isAsc = sortOrder === "asc";
+          if (sortBy === "weight") {
+            return isAsc ? a.weight - b.weight : b.weight - a.weight;
+          } else {
+            return isAsc
+              ? a.timestamp.getTime() - b.timestamp.getTime()
+              : b.timestamp.getTime() - a.timestamp.getTime();
+          }
+        });
+
+        // Show a message to the user about the need for an index
+        if (firestoreError.code === "failed-precondition" && firestoreError.message.includes("index")) {
+          showMessage(
+            "Sorting requires a Firestore index. Please check the console for a link to create it.",
+            "error"
+          );
+        } else {
+          showMessage("Failed to sort weights in Firestore. Using client-side sorting.", "error");
+        }
+      }
     } catch (error: any) {
-      console.error("Error fetching weights:", {
-        message: error.message,
-        code: error.code,
-        details: error.details,
-      });
-      // Only show error if no data was retrieved
       if (weights.length === 0) {
         showMessage("Failed to load weights. Please try again.", "error");
       }
@@ -90,7 +126,8 @@
 
   // Handle sort change
   function handleSortChange(event: any) {
-    const [field, order] = event.target.value.split("-");
+    const value = event.target.value;
+    const [field, order] = value.split("-");
     sortBy = field;
     sortOrder = order;
     currentPage = 1; // Reset to first page on sort change
@@ -112,7 +149,6 @@
       weights = weights.filter((w) => w.id !== id);
       showMessage("Weight deleted successfully!", "success");
     } catch (error) {
-      console.error("Error deleting weight: ", error);
       showMessage("Failed to delete weight. Please try again.", "error");
     } finally {
       weightLoading = false;
