@@ -20,7 +20,7 @@ A comprehensive SvelteKit-based web application for tracking weight, height, BMI
 
 ## 🚀 Quick Start
 
-git clone https://github.com/your-repo/wt-management.git
+git clone https://github.com/code-with-aneesh/wt-management.git
 ### Prerequisites
 
 - Node.js v16+
@@ -31,7 +31,7 @@ git clone https://github.com/your-repo/wt-management.git
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/your-repo/wt-management.git
+   git clone https://github.com/code-with-aneesh/wt-management.git
    cd wt-management
    ```
 2. Install dependencies:
