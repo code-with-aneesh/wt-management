@@ -130,4 +130,4 @@ MIT License - see [LICENSE](LICENSE) for details.
 For questions or support, please contact:
 
 - Email: anesh.angane@gmail.com
-- GitHub Issues: [github.com/your-repo/issues](https://github.com/code-with-aneesh/wt-management/issues)
+- GitHub Issues: [github.com/code-with-aneesh/wt-management/issues](https://github.com/code-with-aneesh/wt-management/issues)
