@@ -170,46 +170,32 @@
   {:else}
     <div class="max-w-4xl mx-auto">
       <!-- Dark Mode Toggle -->
-      <div class="absolute top-4 right-4">
+      <div class="absolute top-4 right-4 z-20">
         <DarkMode
           class="text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700 rounded-lg p-2"
         />
       </div>
 
       <!-- Blog Header -->
-      <div class="mb-12 text-center">
-        <h1
-          class="text-4xl font-bold text-gray-900 dark:text-white mb-4 flex items-center justify-center gap-2"
-        >
-          <svg
-            class="w-8 h-8 text-blue-500 dark:text-blue-400"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
-            />
-          </svg>
-          Health Blog
-        </h1>
-        <p class="text-gray-600 dark:text-gray-300">
-          Insights and tips for a healthier you
-        </p>
+      <div class="mb-8 md:mb-12 text-center px-4">
+        <div class="w-full max-w-2xl mx-auto rounded-xl md:rounded-2xl p-6 md:p-8 mb-4 bg-gradient-to-r from-yellow-300 via-blue-200 to-purple-300 dark:from-yellow-700 dark:via-blue-900 dark:to-purple-900 shadow">
+          <div class="flex items-center justify-center gap-2 mb-2">
+            <span class="text-3xl md:text-4xl">🏆</span>
+            <h1 class="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-800 dark:text-gray-100 drop-shadow">Health Blog</h1>
+          </div>
+          <p class="text-gray-700 dark:text-gray-200 text-base md:text-lg">Insights and tips for a healthier you</p>
+        </div>
       </div>
 
       <!-- Blog Creation Form -->
       <div
-        class="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg mb-8 border border-gray-100 dark:border-gray-700"
+        class="bg-white dark:bg-gray-800 rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg mb-6 md:mb-8 border border-gray-100 dark:border-gray-700 mx-4 md:mx-0"
       >
         <h2
-          class="text-xl font-bold mb-4 text-gray-800 dark:text-white flex items-center gap-2"
+          class="text-lg md:text-xl font-bold mb-4 text-gray-800 dark:text-white flex items-center gap-2"
         >
           <svg
-            class="w-6 h-6 text-blue-500 dark:text-blue-400"
+            class="w-5 h-5 md:w-6 md:h-6 text-blue-500 dark:text-blue-400"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -225,10 +211,10 @@
         </h2>
         {#if formError}
           <div
-            class="bg-red-50 dark:bg-red-900/20 p-4 rounded-lg mb-4 flex items-center gap-2 text-red-600 dark:text-red-400"
+            class="bg-red-50 dark:bg-red-900/20 p-3 md:p-4 rounded-lg mb-4 flex items-center gap-2 text-red-600 dark:text-red-400"
           >
             <svg
-              class="w-5 h-5"
+              class="w-4 h-4 md:w-5 md:h-5"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -240,15 +226,15 @@
                 d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
               />
             </svg>
-            <p>{formError}</p>
+            <p class="text-sm md:text-base">{formError}</p>
           </div>
         {/if}
         {#if formSuccess}
           <div
-            class="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg mb-4 flex items-center gap-2 text-green-600 dark:text-green-400"
+            class="bg-green-50 dark:bg-green-900/20 p-3 md:p-4 rounded-lg mb-4 flex items-center gap-2 text-green-600 dark:text-green-400"
           >
             <svg
-              class="w-5 h-5"
+              class="w-4 h-4 md:w-5 md:h-5"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -260,80 +246,114 @@
                 d="M5 13l4 4L19 7"
               />
             </svg>
-            <p>{formSuccess}</p>
+            <p class="text-sm md:text-base">{formSuccess}</p>
           </div>
         {/if}
-        <div class="space-y-4">
+        <div class="space-y-4 md:space-y-6">
           <div>
             <label
               for="title"
-              class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-              >Title</label
+              class="block text-sm md:text-base font-medium text-gray-700 dark:text-gray-300 mb-2 flex justify-between items-center"
             >
+              <span>Title</span>
+              <span class="text-xs text-gray-400 dark:text-gray-500">{title.length}/100</span>
+            </label>
             <input
               id="title"
               type="text"
               bind:value={title}
-              class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
+              maxlength="100"
+              class="w-full p-3 md:p-4 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 text-base"
               placeholder="Enter post title"
             />
           </div>
           <div>
             <label
               for="content"
-              class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-              >Content (Markdown)</label
+              class="block text-sm md:text-base font-medium text-gray-700 dark:text-gray-300 mb-2 flex justify-between items-center"
             >
+              <span>Content (Markdown)</span>
+              <span class="text-xs text-gray-400 dark:text-gray-500">{content.length}/2000</span>
+            </label>
             <textarea
               id="content"
               bind:value={content}
-              rows="6"
-              class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
+              rows="4"
+              maxlength="2000"
+              class="w-full p-3 md:p-4 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 text-base resize-none"
               placeholder="Write your post in markdown..."
             ></textarea>
+            <div class="mt-3 md:mt-4">
+              <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2">Live Preview</label>
+              <div class="prose prose-sm dark:prose-invert max-w-none border border-gray-100 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800 p-3 min-h-[4rem] md:min-h-[3rem] max-h-32 md:max-h-40 overflow-y-auto">
+                {@html renderMarkdown(content)}
+              </div>
+            </div>
           </div>
-          <button
-            on:click={handleSubmit}
-            class="px-4 py-2 bg-blue-500 dark:bg-blue-600 text-white rounded-lg hover:bg-blue-600 dark:hover:bg-blue-700 transition-colors"
-          >
-            Publish Post
-          </button>
+          <div class="block md:hidden sticky bottom-0 left-0 w-full z-10 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-4 rounded-b-xl flex justify-end">
+            <button
+              on:click={handleSubmit}
+              class="w-full px-4 py-3 bg-blue-500 dark:bg-blue-600 text-white rounded-lg hover:bg-blue-600 dark:hover:bg-blue-700 transition-colors font-medium"
+            >
+              Publish Post
+            </button>
+          </div>
+          <div class="hidden md:block">
+            <button
+              on:click={handleSubmit}
+              class="px-6 py-3 bg-blue-500 dark:bg-blue-600 text-white rounded-lg hover:bg-blue-600 dark:hover:bg-blue-700 transition-colors font-medium"
+            >
+              Publish Post
+            </button>
+          </div>
         </div>
       </div>
 
       <!-- Blog Posts -->
-      <div class="space-y-8">
+      <div class="space-y-6 md:space-y-8 px-4 md:px-0">
         {#each posts as post}
           <article
-            class="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-shadow border border-gray-100 dark:border-gray-700"
+            class="relative bg-white dark:bg-gray-800 rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg border-l-4 border-blue-400 dark:border-blue-600 hover:scale-[1.01] md:hover:scale-[1.02] hover:shadow-xl transition-all duration-200 border border-gray-100 dark:border-gray-700 group mb-2"
           >
-            <h2
-              class="text-2xl font-bold text-gray-900 dark:text-white mb-3 hover:text-blue-500 dark:hover:text-blue-400 transition-colors"
-            >
-              <a href="/blog/{post.id}">{post.title}</a>
-            </h2>
-            <div class="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400 mb-4">
-              <span>{formatDate(post.timestamp)}</span>
-              <span>•</span>
-              <span>By {post.author}</span>
+            <div class="flex items-start md:items-center gap-3 mb-3">
+              <div class="flex-shrink-0 w-8 h-8 md:w-10 md:h-10 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-blue-600 dark:text-blue-300 font-bold text-sm md:text-lg shadow-sm">
+                {post.author ? post.author[0].toUpperCase() : 'A'}
+              </div>
+              <div class="flex-1 min-w-0">
+                <h2
+                  class="text-lg md:text-xl lg:text-2xl font-bold text-gray-900 dark:text-white hover:text-blue-500 dark:hover:text-blue-400 transition-colors mb-1 md:mb-0 line-clamp-2"
+                >
+                  <a href="/blog/{post.id}">{post.title}</a>
+                </h2>
+                <div class="flex items-center gap-2 text-xs md:text-sm text-gray-500 dark:text-gray-400">
+                  <span>{formatDate(post.timestamp)}</span>
+                  <span>•</span>
+                  <span>By {post.author}</span>
+                </div>
+              </div>
             </div>
-            <div class="text-gray-700 dark:text-gray-200">
-              {truncateContent(post.content)}
+            <div class="text-gray-700 dark:text-gray-200 mt-2 max-h-20 md:max-h-28 overflow-hidden relative pr-2">
+              <div class="absolute bottom-0 left-0 w-full h-6 md:h-8 bg-gradient-to-t from-white dark:from-gray-800 to-transparent pointer-events-none"></div>
+              <div class="prose prose-sm dark:prose-invert max-w-none" >
+                {@html renderMarkdown(truncateContent(post.content, 150))}
+              </div>
             </div>
             <a
               href="/blog/{post.id}"
-              class="inline-block mt-4 text-blue-500 dark:text-blue-400 hover:underline font-medium"
-              >Read more</a
+              class="inline-flex items-center gap-1 mt-3 md:mt-4 text-blue-500 dark:text-blue-400 hover:underline font-medium group-hover:translate-x-1 transition-transform"
             >
+              Read more
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg>
+            </a>
           </article>
         {/each}
       </div>
 
       {#if posts.length === 0}
         <div
-          class="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-100 dark:border-gray-700 text-center"
+          class="bg-white dark:bg-gray-800 rounded-xl md:rounded-2xl p-4 md:p-6 shadow-lg border border-gray-100 dark:border-gray-700 text-center mt-6 md:mt-8 mx-4 md:mx-0"
         >
-          <p class="text-gray-600 dark:text-gray-300">
+          <p class="text-gray-600 dark:text-gray-300 text-base md:text-lg">
             No blog posts available. Create one to get started!
           </p>
         </div>

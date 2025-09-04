@@ -209,50 +209,52 @@
 </script>
 
 <div
-  class="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-6"
+  class="min-h-screen bg-gray-50 dark:bg-gray-900 p-3 md:p-4 lg:p-6"
   transition:fade
 >
   <div class="max-w-7xl mx-auto">
-    <header class="mb-8 flex justify-between items-center">
-      <div class="text-center">
-        <h1 class="text-3xl font-bold text-gray-800 dark:text-gray-200 mb-2">
-          Current Leaderboard
-        </h1>
+    <header class="mb-6 md:mb-8 flex justify-between items-center">
+      <div class="w-full max-w-2xl mx-auto rounded-xl md:rounded-2xl p-6 md:p-8 mb-4 bg-gradient-to-r from-yellow-300 via-blue-200 to-purple-300 dark:from-yellow-700 dark:via-blue-900 dark:to-purple-900 shadow">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="text-3xl md:text-4xl">🏆</span>
+          <h1 class="text-2xl md:text-3xl font-bold text-gray-800 dark:text-gray-100 drop-shadow">Current Leaderboard</h1>
+        </div>
+        <p class="text-gray-700 dark:text-gray-200 text-base md:text-lg">Celebrate your progress and see how you stack up!</p>
       </div>
     </header>
 
     {#if isLoading}
-      <div class="flex justify-center items-center h-64" transition:fade>
+      <div class="flex justify-center items-center h-48 md:h-64" transition:fade>
         <div
-          class="animate-spin rounded-full h-12 w-12 border-t-4 border-gray-500 dark:border-gray-600 border-solid"
+          class="animate-spin rounded-full h-10 w-10 md:h-12 md:w-12 border-t-4 border-gray-500 dark:border-gray-600 border-solid"
         ></div>
       </div>
     {:else if leaderboardData.length === 0}
       <div
-        class="text-center text-gray-600 dark:text-gray-400 py-10"
+        class="text-center text-gray-600 dark:text-gray-400 py-8 md:py-10 px-4"
         transition:fade
       >
-        <p class="text-xl">
+        <p class="text-lg md:text-xl">
           No data available. Start tracking your progress to join the leaderboard!
         </p>
       </div>
     {:else}
       <!-- Leaderboard Table -->
       <div
-        class="bg-gray-100 dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-800 overflow-x-auto"
+        class="bg-gray-100 dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-800 overflow-x-auto mx-2 md:mx-0"
       >
         <table
-          class="w-full text-sm text-left text-gray-700 dark:text-gray-400"
+          class="w-full text-sm text-left text-gray-700 dark:text-gray-400 min-w-[600px] md:min-w-[700px]"
         >
           <thead
-            class="text-xs uppercase bg-gray-200 dark:bg-gray-800 dark:text-gray-500"
+            class="text-xs uppercase bg-gray-200 dark:bg-gray-800 dark:text-gray-500 sticky top-0 z-10"
           >
             <tr>
-              <th scope="col" class="px-6 py-3">Rank</th>
-              <th scope="col" class="px-6 py-3">User</th>
+              <th scope="col" class="px-3 md:px-6 py-2 md:py-3">Rank</th>
+              <th scope="col" class="px-3 md:px-6 py-2 md:py-3">User</th>
               <th
                 scope="col"
-                class="px-6 py-3 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                class="px-3 md:px-6 py-2 md:py-3 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                 on:click={() => handleSort("weightLoss")}
               >
                 Weight Loss (kg)
@@ -262,7 +264,7 @@
               </th>
               <th
                 scope="col"
-                class="px-6 py-3 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                class="px-3 md:px-6 py-2 md:py-3 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                 on:click={() => handleSort("totalGymDays")}
               >
                 Total Gym Days
@@ -272,7 +274,7 @@
               </th>
               <th
                 scope="col"
-                class="px-6 py-3 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                class="px-3 md:px-6 py-2 md:py-3 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                 on:click={() => handleSort("currentStreak")}
               >
                 Current Streak
@@ -282,7 +284,7 @@
               </th>
               <th
                 scope="col"
-                class="px-6 py-3 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                class="px-3 md:px-6 py-2 md:py-3 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                 on:click={() => handleSort("attendancePercentage")}
               >
                 Attendance %
@@ -295,42 +297,59 @@
           <tbody>
             {#each leaderboardData as user, index}
               <tr
-                class="border-b border-gray-200 dark:border-gray-800 {getRankStyle(
-                  index,
-                  user
-                )} hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                class="border-b border-gray-200 dark:border-gray-800 {getRankStyle(index, user)} hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors duration-150 rounded-xl"
                 transition:fade
               >
-                <td
-                  class="px-6 py-4 font-medium text-gray-800 dark:text-gray-200"
-                >
-                  {index + 1}
-                  {getRankIcon(index)}
-                </td>
-                <td class="px-6 py-4">
-                  {user.username}
-                  {#if user.userId === currentUser?.uid}
-                    <span class="ml-2 text-xs text-blue-500 dark:text-blue-300"
-                      >(You)</span
-                    >
+                <td class="px-3 md:px-6 py-3 md:py-4 font-medium text-gray-800 dark:text-gray-200 text-center">
+                  {#if index < 3}
+                    <span class="inline-block px-2 py-1 rounded-full text-xs font-bold"
+                      class:bg-yellow-400={index===0}
+                      class:bg-gray-300={index===1}
+                      class:bg-amber-400={index===2}
+                      class:text-yellow-900={index===0}
+                      class:text-gray-900={index===1}
+                      class:text-amber-900={index===2}
+                    >{index+1} {getRankIcon(index)}</span>
+                  {:else}
+                    <span class="inline-block px-2 py-1 rounded-full text-xs bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200">{index+1}</span>
                   {/if}
                 </td>
-                <td class="px-6 py-4">
+                <td class="px-3 md:px-6 py-3 md:py-4 flex items-center gap-2 md:gap-3">
+                  <div class="w-8 h-8 md:w-9 md:h-9 rounded-full flex items-center justify-center font-bold text-base md:text-lg shadow-sm"
+                    class:bg-yellow-300={index===0}
+                    class:bg-gray-300={index===1}
+                    class:bg-amber-400={index===2}
+                    class:bg-blue-100={user.userId === currentUser?.uid && index>2}
+                    class:bg-gray-200={index>2 && user.userId !== currentUser?.uid}
+                    class:text-gray-900={index<3}
+                    class:text-blue-700={user.userId === currentUser?.uid && index>2}
+                    class:text-gray-700={index>2 && user.userId !== currentUser?.uid}
+                  >
+                    {user.username ? user.username[0].toUpperCase() : 'A'}
+                  </div>
+                  <div class="min-w-0 flex-1">
+                    <span class="font-medium text-sm md:text-base block truncate">{user.username}</span>
+                    {#if user.userId === currentUser?.uid}
+                      <span class="text-xs bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 px-1.5 md:px-2 py-0.5 rounded-full font-semibold block mt-1">You</span>
+                    {/if}
+                  </div>
+                </td>
+                <td class="px-3 md:px-6 py-3 md:py-4">
                   {#if user.weightLoss !== null}
                     {#if user.weightLoss > 0}
-                      <span>{user.weightLoss} ↓</span>
+                      <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 font-semibold text-xs">{user.weightLoss} <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 17l-4 4m0 0l-4-4m4 4V3"/></svg></span>
                     {:else if user.weightLoss < 0}
-                      <span>{Math.abs(user.weightLoss)} ↑</span>
+                      <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 font-semibold text-xs">{Math.abs(user.weightLoss)} <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7l4-4m0 0l4 4m-4-4v18"/></svg></span>
                     {:else}
-                      <span>0</span>
+                      <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200 font-semibold text-xs">0</span>
                     {/if}
                   {:else}
-                    N/A
+                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200 font-semibold text-xs">N/A</span>
                   {/if}
                 </td>
-                <td class="px-6 py-4">{user.totalGymDays}</td>
-                <td class="px-6 py-4">{user.currentStreak}</td>
-                <td class="px-6 py-4">{user.attendancePercentage}%</td>
+                <td class="px-3 md:px-6 py-3 md:py-4 text-sm md:text-base">{user.totalGymDays}</td>
+                <td class="px-3 md:px-6 py-3 md:py-4 text-sm md:text-base">{user.currentStreak}</td>
+                <td class="px-3 md:px-6 py-3 md:py-4 text-sm md:text-base">{user.attendancePercentage}%</td>
               </tr>
             {/each}
           </tbody>
