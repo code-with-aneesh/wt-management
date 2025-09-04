@@ -1,18 +1,26 @@
 # Weight Management Application
 
-A comprehensive SvelteKit-based web application for tracking weight, height, and BMI with interactive visualizations and secure cloud storage.
+A comprehensive SvelteKit-based web application for tracking weight, height, BMI, gym attendance, and more—with interactive visualizations, AI-powered chatbot, community forum, and secure cloud storage.
 
 ## ✨ Key Features
 
-- 🔒 **Secure Authentication** - Google login via Firebase
-- 📊 **Data Tracking** - Record weight and height with input validation
-- ⚖️ **BMI Insights** - Automatic BMI calculation with health categorization
-- 🎯 **Personalized Goals** - Healthy weight range suggestions based on height
-- 📈 **Interactive Visualizations** - Beautiful charts using Chart.js
-- 📱 **Fully Responsive** - Optimized for all device sizes
+- 🔒 **Secure Authentication** – Google login via Firebase
+- 📊 **Data Tracking** – Record weight, height, age, waist, and activity level with input validation
+- ⚖️ **BMI & BMR Insights** – Automatic BMI, BMR, and daily calorie calculation with health categorization
+- 🎯 **Personalized Goals** – Healthy weight range suggestions based on height
+- 📈 **Interactive Visualizations** – Beautiful charts for weight and gym progress using Chart.js
+- 🏆 **Leaderboard** – Compare user progress, gym attendance, and weight loss
+- 🏋️ **Gym Calendar** – Interactive calendar for tracking gym attendance
+- 🤖 **AI Chatbot (FitBot)** – Ask health, fitness, and nutrition questions
+- �️ **Community Forum** – Post, reply, upvote/downvote, and pin messages; admin controls
+- 📝 **Blog** – Markdown-based blog posts with live preview and authentication
+- 🔄 **Weight History** – Paginated, sortable weight history with edit/delete options
+- 🌙 **Dark Mode & Custom Themes** – Tailwind CSS with custom theming and dark mode
+- �📱 **Fully Responsive** – Optimized for all device sizes
 
 ## 🚀 Quick Start
 
+git clone https://github.com/your-repo/wt-management.git
 ### Prerequisites
 
 - Node.js v16+
@@ -22,38 +30,31 @@ A comprehensive SvelteKit-based web application for tracking weight, height, and
 ### Installation
 
 1. Clone the repository:
-
-```bash
-git clone https://github.com/your-repo/wt-management.git
-cd wt-management
-```
-
+   ```bash
+   git clone https://github.com/your-repo/wt-management.git
+   cd wt-management
+   ```
 2. Install dependencies:
-
-```bash
-npm install
-```
-
+   ```bash
+   npm install
+   ```
 3. Set up Firebase configuration:
-   1. Create a Firebase project at [firebase.google.com](https://firebase.google.com)
-   2. Create a `.env` file in the root directory:
-
-```env
-VITE_API_KEY=your_firebase_api_key
-VITE_AUTH_DOMAIN=your_project.firebaseapp.com
-VITE_PROJECT_ID=your_project_id
-VITE_STORAGE_BUCKET=your_bucket.appspot.com
-VITE_MESSAGING_SENDER_ID=your_sender_id
-VITE_APP_ID=your_app_id
-```
-
-4. Run the development server:
-
-```bash
-npm run dev
-```
-
-5. Open your browser to: `http://localhost:5173`
+   - Create a Firebase project at [firebase.google.com](https://firebase.google.com)
+   - Create a `.env` file in the root directory:
+     ```env
+     VITE_API_KEY=your_firebase_api_key
+     VITE_AUTH_DOMAIN=your_project.firebaseapp.com
+     VITE_PROJECT_ID=your_project_id
+     VITE_STORAGE_BUCKET=your_bucket.appspot.com
+     VITE_MESSAGING_SENDER_ID=your_sender_id
+     VITE_APP_ID=your_app_id
+     ```
+4. (Optional) For Vercel deployment, add `vercel.json` and set environment variables in Vercel dashboard.
+5. Run the development server:
+   ```bash
+   npm run dev
+   ```
+6. Open your browser to: `http://localhost:5173`
 
 ## 🛠️ Building for Production
 
@@ -64,14 +65,17 @@ npm run preview
 
 ## 🧰 Technology Stack
 
-| Component        | Technology    |
-| ---------------- | ------------- |
-| Framework        | SvelteKit     |
-| Authentication   | Firebase Auth |
-| Database         | Firestore     |
-| Charts           | Chart.js      |
-| Styling          | Tailwind CSS  |
-| State Management | Svelte Stores |
+| Component        | Technology           |
+|------------------|---------------------|
+| Framework        | SvelteKit           |
+| Routing          | SvelteKit File-based|
+| Authentication   | Firebase Auth       |
+| Database         | Firestore           |
+| Charts           | Chart.js            |
+| Styling          | Tailwind CSS, Flowbite Svelte |
+| State Management | Svelte Stores       |
+| Markdown         | marked, DOMPurify   |
+| UI Components    | Flowbite Svelte     |
 
 ## 📅 Future Roadmap
 
@@ -82,11 +86,30 @@ npm run preview
 - [ ] Customizable reminders and notifications
 - [ ] Enhanced chart features (zoom, export, annotations)
 - [ ] Mobile app (via Capacitor or similar)
+- [ ] AI-powered health recommendations
+- [ ] Forum moderation tools
+- [ ] Blog post scheduling and rich media
 
 ### Known Issues
 
 - [ ] Chart loading performance on low-end devices
 - [ ] Timezone handling for date tracking
+
+## 🤝 Contributing
+
+
+## 🗂️ Main Routes & Pages
+
+- `/dashboard` – Health dashboard with weight, gym, and BMI stats
+- `/leaderboard` – Compare user progress and gym attendance
+- `/profile` – Community forum for discussions and replies
+- `/blog` – Markdown-based blog posts
+- `/chatbot` – AI-powered FitBot for health queries
+- `/bmi` – BMI, BMR, and calorie calculator
+- `/gym` – Interactive gym calendar
+- `/input` – Multi-section health data input form
+- `/updateweights` – Weight history management
+- `/about` – App info and team details
 
 ## 🤝 Contributing
 
