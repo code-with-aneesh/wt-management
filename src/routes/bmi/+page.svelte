@@ -49,7 +49,7 @@
         try {
           const weightQuery = query(
             collection(db, "weights"),
-            where("userId", "==", user.uid),
+            where("userId", "==", u.uid),
             orderBy("timestamp", "desc"),
             limit(1)
           );
@@ -58,7 +58,7 @@
             lastWeight = weightSnapshot.docs[0].data().weight;
         } catch {
           const weightSnapshot = await getDocs(
-            query(collection(db, "weights"), where("userId", "==", user.uid))
+            query(collection(db, "weights"), where("userId", "==", u.uid))
           );
           if (!weightSnapshot.empty) {
             const docs = weightSnapshot.docs.map(d => ({ ...d.data(), id: d.id }));
@@ -71,7 +71,7 @@
         try {
           const heightQuery = query(
             collection(db, "heights"),
-            where("userId", "==", user.uid),
+            where("userId", "==", u.uid),
             orderBy("timestamp", "desc"),
             limit(1)
           );
@@ -80,7 +80,7 @@
             lastHeight = heightSnapshot.docs[0].data().height;
         } catch {
           const heightSnapshot = await getDocs(
-            query(collection(db, "heights"), where("userId", "==", user.uid))
+            query(collection(db, "heights"), where("userId", "==", u.uid))
           );
           if (!heightSnapshot.empty) {
             const docs = heightSnapshot.docs.map(d => ({ ...d.data(), id: d.id }));
@@ -90,7 +90,7 @@
         }
 
         // Fetch Profile
-        const profileDoc = await getDoc(doc(db, "profiles", user.uid));
+        const profileDoc = await getDoc(doc(db, "profiles", u.uid));
         if (profileDoc.exists()) {
           const data = profileDoc.data();
           age = data.age;
