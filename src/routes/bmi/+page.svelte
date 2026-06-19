@@ -1,18 +1,19 @@
 <script lang="ts">
-  import { onMount } from "svelte";
-  import { db, auth } from "$lib/firebase";
+  import { onMount, onDestroy } from "svelte";
+  import { db } from "$lib/firebase";
   import { DarkMode } from "flowbite-svelte";
   import {
     collection,
     query,
+    where,
     orderBy,
     limit,
     getDocs,
     doc,
     getDoc,
   } from "firebase/firestore";
-  import { onAuthStateChanged } from "firebase/auth";
   import { goto } from "$app/navigation";
+  import { user } from "$lib/stores/authStore";
 
   // User Data
   let currentUser: { uid: string } | null = null;
@@ -35,34 +36,58 @@
   let loading = true;
   let error: string | null = null;
 
-  onMount(async () => {
-    onAuthStateChanged(auth, async (user) => {
-      if (!user) {
+  onMount(() => {
+    const unsub = user.subscribe(async (u) => {
+      if (!u) {
         goto("/");
         return;
       }
-      currentUser = user;
+      currentUser = u;
 
       try {
         // Fetch Weight
-        const weightQuery = query(
-          collection(db, "weights"),
-          orderBy("timestamp", "desc"),
-          limit(1)
-        );
-        const weightSnapshot = await getDocs(weightQuery);
-        if (!weightSnapshot.empty)
-          lastWeight = weightSnapshot.docs[0].data().weight;
+        try {
+          const weightQuery = query(
+            collection(db, "weights"),
+            where("userId", "==", user.uid),
+            orderBy("timestamp", "desc"),
+            limit(1)
+          );
+          const weightSnapshot = await getDocs(weightQuery);
+          if (!weightSnapshot.empty)
+            lastWeight = weightSnapshot.docs[0].data().weight;
+        } catch {
+          const weightSnapshot = await getDocs(
+            query(collection(db, "weights"), where("userId", "==", user.uid))
+          );
+          if (!weightSnapshot.empty) {
+            const docs = weightSnapshot.docs.map(d => ({ ...d.data(), id: d.id }));
+            docs.sort((a, b) => b.timestamp.toMillis() - a.timestamp.toMillis());
+            lastWeight = docs[0].weight;
+          }
+        }
 
         // Fetch Height
-        const heightQuery = query(
-          collection(db, "heights"),
-          orderBy("timestamp", "desc"),
-          limit(1)
-        );
-        const heightSnapshot = await getDocs(heightQuery);
-        if (!heightSnapshot.empty)
-          lastHeight = heightSnapshot.docs[0].data().height;
+        try {
+          const heightQuery = query(
+            collection(db, "heights"),
+            where("userId", "==", user.uid),
+            orderBy("timestamp", "desc"),
+            limit(1)
+          );
+          const heightSnapshot = await getDocs(heightQuery);
+          if (!heightSnapshot.empty)
+            lastHeight = heightSnapshot.docs[0].data().height;
+        } catch {
+          const heightSnapshot = await getDocs(
+            query(collection(db, "heights"), where("userId", "==", user.uid))
+          );
+          if (!heightSnapshot.empty) {
+            const docs = heightSnapshot.docs.map(d => ({ ...d.data(), id: d.id }));
+            docs.sort((a, b) => b.timestamp.toMillis() - a.timestamp.toMillis());
+            lastHeight = docs[0].height;
+          }
+        }
 
         // Fetch Profile
         const profileDoc = await getDoc(doc(db, "profiles", user.uid));
@@ -86,6 +111,7 @@
         loading = false;
       }
     });
+    onDestroy(() => unsub());
   });
 
   function calculateBMI(weight: number, height: number) {

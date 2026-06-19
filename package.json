@@ -12,19 +12,14 @@
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch"
 	},
 	"devDependencies": {
-		"@sveltejs/adapter-auto": "^4.0.0",
-		"@sveltejs/adapter-node": "^5.2.12",
 		"@sveltejs/adapter-vercel": "^5.6.2",
 		"@sveltejs/kit": "^2.16.0",
 		"@sveltejs/vite-plugin-svelte": "^5.0.0",
 		"@types/chartjs-plugin-trendline": "^1.0.4",
-		"@types/date-fns": "^2.5.3",
 		"@vite-pwa/sveltekit": "^1.0.0",
-		"autoprefixer": "^10.4.20",
 		"flowbite": "^3.1.2",
 		"flowbite-svelte": "^0.48.4",
 		"flowbite-svelte-icons": "^2.0.3",
-		"postcss": "^8.5.2",
 		"svelte": "^5.0.0",
 		"svelte-check": "^4.0.0",
 		"tailwindcss": "^4.0.7",
@@ -34,7 +29,6 @@
 	},
 	"dependencies": {
 		"@google/generative-ai": "^0.24.1",
-		"@sveltejs/adapter-static": "^3.0.8",
 		"@tailwindcss/vite": "^4.0.7",
 		"@tiptap/core": "^2.12.0",
 		"@tiptap/starter-kit": "^2.12.0",
@@ -49,7 +43,6 @@
 		"jspdf": "^3.0.1",
 		"marked": "^15.0.11",
 		"node-emoji": "^2.2.0",
-		"plotly": "^1.0.6",
 		"plotly.js-dist-min": "^3.0.1"
 	}
 }

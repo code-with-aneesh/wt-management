@@ -124,7 +124,7 @@
 
               <!-- Logout Button -->
               <button
-                on:click={logout}
+                onclick={logout}
                 class="hidden sm:flex text-white bg-blue-800 hover:bg-blue-900 dark:bg-blue-700 dark:hover:bg-blue-800 font-medium rounded-lg text-sm px-5 py-2.5 transition-colors duration-200"
               >
                 Logout
@@ -133,7 +133,7 @@
               <!-- Mobile Menu Toggle -->
               <button
                 class="sm:hidden text-gray-100 dark:text-gray-300 focus:outline-none transition-transform hover:scale-110"
-                on:click={toggleMenu}
+                onclick={toggleMenu}
                 aria-label="Toggle menu"
                 aria-expanded={menuOpen}
               >
@@ -192,7 +192,7 @@
             <a
               href="/dashboard"
               class="text-gray-100 dark:text-gray-300 hover:text-gray-400 dark:hover:text-white py-2 transition-colors"
-              on:click={toggleMenu}
+              onclick={toggleMenu}
             >
               Dashboard
             </a>
@@ -200,35 +200,35 @@
             <a
               href="/gym"
               class="text-gray-100 dark:text-gray-300 hover:text-gray-400 dark:hover:text-white py-2 transition-colors"
-              on:click={toggleMenu}
+              onclick={toggleMenu}
             >
               Gym Tracker
             </a>
             <a
               href="/leaderboard"
               class="text-gray-100 dark:text-gray-300 hover:text-gray-400 dark:hover:text-white py-2 transition-colors"
-              on:click={toggleMenu}
+              onclick={toggleMenu}
             >
               Leaderboard
             </a>
             <a
               href="/bmi"
               class="text-gray-100 dark:text-gray-300 hover:text-gray-400 dark:hover:text-white py-2 transition-colors"
-              on:click={toggleMenu}
+              onclick={toggleMenu}
             >
               BMI Analyzer
             </a>
             <a
               href="/blog"
               class="text-gray-100 dark:text-gray-300 hover:text-gray-400 dark:hover:text-white py-2 transition-colors"
-              on:click={toggleMenu}
+              onclick={toggleMenu}
             >
               Blog
             </a>
             <a
               href="/input"
               class="text-gray-100 dark:text-gray-300 hover:text-gray-400 dark:hover:text-white py-2 transition-colors"
-              on:click={toggleMenu}
+              onclick={toggleMenu}
             >
               Data Input
             </a>
@@ -247,7 +247,7 @@
                     {currentUser.displayName}
                   </p>
                   <button
-                    on:click={logout}
+                    onclick={logout}
                     class="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 text-sm"
                   >
                     Sign Out

@@ -95,7 +95,7 @@
       </p>
       <div class="hero-button flex justify-center gap-6" in:fly={{ y: 30, duration: 1000, delay: 500 }}>
         <button
-          on:click={loginWithGoogle}
+          onclick={loginWithGoogle}
           aria-label="Login with Google"
           class="relative bg-gradient-to-r from-blue-600 to-coral-500 text-white px-10 py-4 rounded-full font-semibold text-lg hover:shadow-2xl hover:scale-[1.05] transition-all duration-500 flex items-center gap-3 dark:from-blue-500 dark:to-coral-400 group overflow-hidden"
         >

@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, onDestroy } from "svelte";
   import { DarkMode } from "flowbite-svelte";
-  import { db, auth } from "$lib/firebase";
+  import { db } from "$lib/firebase";
   import {
     collection,
     addDoc,
@@ -9,8 +9,8 @@
     doc,
     serverTimestamp,
   } from "firebase/firestore";
-  import { onAuthStateChanged } from "firebase/auth";
   import { goto } from "$app/navigation";
+  import { user } from "$lib/stores/authStore";
   import {
     Button,
     Input,
@@ -56,14 +56,15 @@
   let profileError = "";
 
   onMount(() => {
-    onAuthStateChanged(auth, (user) => {
-      if (user) {
-        currentUser = user;
+    const unsub = user.subscribe((u) => {
+      if (u) {
+        currentUser = u;
       } else {
         currentUser = null;
         goto("/");
       }
     });
+    onDestroy(() => unsub());
   });
 
   function showMessage(section: "weight" | "height" | "profile", message: string, type: "success" | "error") {
@@ -312,14 +313,14 @@
             min="1"
             step="0.1"
             class="rounded-lg h-10 lg:h-12 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400 text-sm lg:text-base"
-            on:blur={validateWeight}
+            onblur={validateWeight}
           />
           <div class="flex flex-col sm:flex-row gap-3 mt-4">
             <Button
               color="blue"
               size="md"
               class="w-full transform transition hover:scale-[1.02] dark:enabled:hover:bg-blue-700 text-sm lg:text-base"
-              on:click={addWeight}
+              onclick={addWeight}
               disabled={weightLoading || !weight}
               aria-label="Save weight"
             >
@@ -392,7 +393,7 @@
                 placeholder="175"
                 min="1"
                 class="rounded-lg h-10 lg:h-12 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400 text-sm lg:text-base"
-                on:blur={validateHeight}
+                onblur={validateHeight}
               />
             {:else}
               <div class="flex gap-4">
@@ -402,7 +403,7 @@
                   placeholder="Feet"
                   min="0"
                   class="rounded-lg h-10 lg:h-12 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400 text-sm lg:text-base"
-                  on:blur={validateHeight}
+                  onblur={validateHeight}
                 />
                 <Input
                   type="number"
@@ -411,7 +412,7 @@
                   min="0"
                   max="11"
                   class="rounded-lg h-10 lg:h-12 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400 text-sm lg:text-base"
-                  on:blur={validateHeight}
+                  onblur={validateHeight}
                 />
               </div>
             {/if}
@@ -419,7 +420,7 @@
               color="blue"
               size="md"
               class="w-full transform transition hover:scale-[1.02] dark:enabled:hover:bg-blue-700 text-sm lg:text-base"
-              on:click={addHeight}
+              onclick={addHeight}
               disabled={heightLoading || (!heightCm && !feet && !inches)}
               aria-label="Save height"
             >
@@ -462,7 +463,7 @@
               min="18"
               max="120"
               class="rounded-lg h-10 lg:h-12 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400 text-sm lg:text-base"
-              on:blur={validateAge}
+              onblur={validateAge}
             />
             {#if ageError}
               <p class="text-red-600 dark:text-red-500 text-sm mt-1">{ageError}</p>
@@ -510,7 +511,7 @@
               placeholder="86.5"
               step="0.1"
               class="rounded-lg h-10 lg:h-12 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400 text-sm lg:text-base"
-              on:blur={validateWaist}
+              onblur={validateWaist}
             />
             {#if waistError}
               <p class="text-red-600 dark:text-red-500 text-sm mt-1">{waistError}</p>
@@ -539,7 +540,7 @@
             color="green"
             size="md"
             class="w-full mt-4 transform transition hover:scale-[1.02] dark:enabled:hover:bg-green-700 text-sm lg:text-base"
-            on:click={addProfile}
+            onclick={addProfile}
             disabled={profileLoading || !age || !gender || !waist || !activityLevel}
             aria-label="Save profile"
           >

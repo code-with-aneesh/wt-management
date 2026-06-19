@@ -253,7 +253,7 @@
         </h1>
         <div class="flex gap-1">
           <button
-            on:click={() => navigate('prev')}
+            onclick={() => navigate('prev')}
             aria-label="Previous period"
             class="p-1.5 sm:p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
           >
@@ -262,7 +262,7 @@
             </svg>
           </button>
           <button
-            on:click={() => navigate('next')}
+            onclick={() => navigate('next')}
             aria-label="Next period"
             class="p-1.5 sm:p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
           >
@@ -276,7 +276,7 @@
       <div class="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1 gap-1">
         {#each ['month', 'week', 'day'] as view (view)}
           <button
-            on:click={() => selectedView.set(view as 'month' | 'week' | 'day')}
+            onclick={() => selectedView.set(view as 'month' | 'week' | 'day')}
             class={`px-3 py-1.5 rounded-md transition-all text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 dark:focus:ring-offset-gray-700 ${
               view === $selectedView
                 ? 'bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 shadow-sm'
@@ -310,8 +310,8 @@
           {@const isFuture = isAfter(dayInfo.date, new Date())}
 
           <button
-            on:click={() => isSelectable && toggleDate(dayInfo.date)}
-            on:keydown={(e) => e.key === 'Enter' && isSelectable && toggleDate(dayInfo.date)}
+            onclick={() => isSelectable && toggleDate(dayInfo.date)}
+            onkeydown={(e) => e.key === 'Enter' && isSelectable && toggleDate(dayInfo.date)}
             role="button"
             aria-pressed={!!dayStatus}
             aria-label={`

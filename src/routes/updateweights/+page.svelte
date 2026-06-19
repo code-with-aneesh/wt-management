@@ -78,7 +78,7 @@
                 timestamp: data.timestamp?.toDate() || new Date(),
               };
             });
-      } catch (firestoreError: any) {
+      } catch (firestoreError: unknown) {
         // Fallback to fetching without sorting and sort client-side
         q = query(collection(db, "weights"), where("userId", "==", currentUser.uid));
         const snapshot = await getDocs(q);
@@ -106,7 +106,8 @@
         });
 
         // Show a message to the user about the need for an index
-        if (firestoreError.code === "failed-precondition" && firestoreError.message.includes("index")) {
+        const fsError = firestoreError as { code?: string; message?: string };
+        if (fsError.code === "failed-precondition" && fsError.message?.includes("index")) {
           showMessage(
             "Sorting requires a Firestore index. Please check the console for a link to create it.",
             "error"
@@ -115,7 +116,7 @@
           showMessage("Failed to sort weights in Firestore. Using client-side sorting.", "error");
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (weights.length === 0) {
         showMessage("Failed to load weights. Please try again.", "error");
       }
@@ -125,8 +126,8 @@
   }
 
   // Handle sort change
-  function handleSortChange(event: any) {
-    const value = event.target.value;
+  function handleSortChange(event: Event) {
+    const value = (event.target as HTMLSelectElement).value;
     const [field, order] = value.split("-");
     sortBy = field;
     sortOrder = order;
@@ -184,7 +185,7 @@
           class="w-full sm:w-48 text-xs sm:text-sm dark:bg-gray-700 dark:text-white dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
           items={sortOptions}
           value={`${sortBy}-${sortOrder}`}
-          on:change={handleSortChange}
+          onchange={handleSortChange}
           disabled={weightLoading}
           aria-label="Sort weight records"
         />
@@ -220,7 +221,7 @@
                     color="red"
                     size="xs"
                     class="flex items-center gap-1 sm:gap-2 hover:bg-red-600 transition-colors text-xs w-full justify-center"
-                    on:click={() => deleteWeight(id)}
+                    onclick={() => deleteWeight(id)}
                     disabled={weightLoading}
                     aria-label={`Delete weight record of ${weight} kg from ${timestamp.toLocaleDateString()}`}
                   >
@@ -241,7 +242,7 @@
             color="light"
             size="xs"
             disabled={currentPage === 1 || weightLoading}
-            on:click={() => goToPage(currentPage - 1)}
+            onclick={() => goToPage(currentPage - 1)}
             class="w-full sm:w-20 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-xs"
             aria-label="Previous page"
           >
@@ -252,7 +253,7 @@
               <Button
                 color={currentPage === i + 1 ? "blue" : "light"}
                 size="xs"
-                on:click={() => goToPage(i + 1)}
+                onclick={() => goToPage(i + 1)}
                 disabled={weightLoading}
                 class="w-7 h-7 sm:w-9 sm:h-9 rounded-full {currentPage === i + 1 ? 'bg-blue-500 text-white' : 'hover:bg-gray-200 dark:hover:bg-gray-600'} text-xs"
                 aria-label={`Go to page ${i + 1}`}
@@ -265,7 +266,7 @@
             color="light"
             size="xs"
             disabled={currentPage === totalPages || weightLoading}
-            on:click={() => goToPage(currentPage + 1)}
+            onclick={() => goToPage(currentPage + 1)}
             class="w-full sm:w-20 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-xs"
             aria-label="Next page"
           >
@@ -294,7 +295,7 @@
             <Button
               color="none"
               class="ml-auto p-0"
-              on:click={() => (weightAlert.show = false)}
+              onclick={() => (weightAlert.show = false)}
               aria-label="Dismiss alert"
             >
               <CloseCircleOutline class="w-4 h-4 sm:w-5 sm:h-5 dark:text-gray-300" />

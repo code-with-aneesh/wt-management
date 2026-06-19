@@ -1,9 +1,9 @@
 <script lang="ts">
-  import { onMount } from "svelte";
-  import { db, auth } from "$lib/firebase";
+  import { onMount, onDestroy } from "svelte";
+  import { db } from "$lib/firebase";
   import { doc, getDoc, collection, query, orderBy, getDocs, addDoc, updateDoc, increment, Timestamp } from "firebase/firestore";
-  import { onAuthStateChanged } from "firebase/auth";
   import { goto } from "$app/navigation";
+  import { user } from "$lib/stores/authStore";
   import { marked } from "marked";
   import DOMPurify from "dompurify";
   import { DarkMode } from "flowbite-svelte";
@@ -41,15 +41,8 @@
   let formError: string | null = null;
   let formSuccess: string | null = null;
 
-  const renderer = new marked.Renderer();
-  marked.setOptions({
-    renderer,
-    gfm: true,
-    breaks: true,
-  });
-
   function renderMarkdown(content: string): string {
-    const rawHtml = marked.parse(content) as string;
+    const rawHtml = marked.parse(content, { gfm: true, breaks: true, async: false }) as string;
     return DOMPurify.sanitize(rawHtml);
   }
 
@@ -200,7 +193,7 @@
     if (!comment) return;
 
     const userVote = comment.userVotes[currentUser.uid];
-    const updates: { [key: string]: any } = { [`userVotes.${currentUser.uid}`]: voteType };
+    const updates: { [key: string]: string | number | null } = { [`userVotes.${currentUser.uid}`]: voteType };
 
     if (userVote === voteType) {
       updates[`userVotes.${currentUser.uid}`] = null;
@@ -243,14 +236,14 @@
   }
 
   onMount(() => {
-    onAuthStateChanged(auth, async (user) => {
-      if (!user) {
+    const unsub = user.subscribe(async (u) => {
+      if (!u) {
         console.log("User not authenticated, redirecting to /");
         goto("/");
         return;
       }
 
-      currentUser = { uid: user.uid, displayName: user.displayName ?? undefined };
+      currentUser = { uid: u.uid, displayName: u.displayName ?? undefined };
       const postId = get(page).params.id;
 
       if (!postId) {
@@ -268,6 +261,7 @@
         loading = false;
       }
     });
+    onDestroy(() => unsub());
   });
 </script>
 
@@ -341,7 +335,7 @@
             placeholder="Write your comment in markdown..."
           ></textarea>
           <button
-            on:click={handleCommentSubmit}
+            onclick={handleCommentSubmit}
             class="mt-2 px-3 py-1.5 sm:px-4 sm:py-2 bg-blue-500 dark:bg-blue-600 text-white rounded-lg hover:bg-blue-600 dark:hover:bg-blue-700 transition-colors text-sm sm:text-base"
           >
             Post Comment
@@ -361,7 +355,7 @@
                 </div>
                 <div class="flex items-center gap-2 mt-1 sm:mt-0">
                   <button
-                    on:click={() => handleVote(comment.id, "upvote")}
+                    onclick={() => handleVote(comment.id, "upvote")}
                     class="text-gray-500 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 flex items-center gap-1"
                     disabled={!currentUser}
                   >
@@ -371,7 +365,7 @@
                     <span>{comment.upvotes}</span>
                   </button>
                   <button
-                    on:click={() => handleVote(comment.id, "downvote")}
+                    onclick={() => handleVote(comment.id, "downvote")}
                     class="text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 flex items-center gap-1"
                     disabled={!currentUser}
                   >
@@ -386,7 +380,7 @@
                 {@html renderMarkdown(comment.content)}
               </div>
               <button
-                on:click={() => toggleReplyForm(comment.id)}
+                onclick={() => toggleReplyForm(comment.id)}
                 class="text-blue-500 dark:text-blue-400 hover:underline text-xs sm:text-sm"
               >
                 {replyOpen[comment.id] ? "Cancel Reply" : "Reply"}
@@ -401,7 +395,7 @@
                     placeholder="Write your reply in markdown..."
                   ></textarea>
                   <button
-                    on:click={() => handleReplySubmit(comment.id)}
+                    onclick={() => handleReplySubmit(comment.id)}
                     class="mt-2 px-3 py-1.5 sm:px-4 sm:py-2 bg-blue-500 dark:bg-blue-600 text-white rounded-lg hover:bg-blue-600 dark:hover:bg-blue-700 transition-colors text-sm sm:text-base"
                   >
                     Post Reply
@@ -421,7 +415,7 @@
                         </div>
                         <div class="flex items-center gap-2 mt-1 sm:mt-0">
                           <button
-                            on:click={() => handleVote(reply.id, "upvote")}
+                            onclick={() => handleVote(reply.id, "upvote")}
                             class="text-gray-500 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 flex items-center gap-1"
                             disabled={!currentUser}
                           >
@@ -431,7 +425,7 @@
                             <span>{reply.upvotes}</span>
                           </button>
                           <button
-                            on:click={() => handleVote(reply.id, "downvote")}
+                            onclick={() => handleVote(reply.id, "downvote")}
                             class="text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 flex items-center gap-1"
                             disabled={!currentUser}
                           >

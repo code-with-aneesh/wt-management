@@ -253,7 +253,7 @@
               <th
                 scope="col"
                 class="px-6 py-3 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-                on:click={() => handleSort("weightLoss")}
+                onclick={() => handleSort("weightLoss")}
               >
                 Weight Loss (kg)
                 {#if sortKey === "weightLoss"}
@@ -263,7 +263,7 @@
               <th
                 scope="col"
                 class="px-6 py-3 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-                on:click={() => handleSort("totalGymDays")}
+                onclick={() => handleSort("totalGymDays")}
               >
                 Total Gym Days
                 {#if sortKey === "totalGymDays"}
@@ -273,7 +273,7 @@
               <th
                 scope="col"
                 class="px-6 py-3 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-                on:click={() => handleSort("currentStreak")}
+                onclick={() => handleSort("currentStreak")}
               >
                 Current Streak
                 {#if sortKey === "currentStreak"}
@@ -283,7 +283,7 @@
               <th
                 scope="col"
                 class="px-6 py-3 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-                on:click={() => handleSort("attendancePercentage")}
+                onclick={() => handleSort("attendancePercentage")}
               >
                 Attendance %
                 {#if sortKey === "attendancePercentage"}

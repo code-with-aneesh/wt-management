@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, tick } from "svelte";
+  import { onMount, onDestroy, tick } from "svelte";
   import {
     Button,
     Input,
@@ -13,10 +13,11 @@
     ExclamationCircleOutline,
     TrashBinSolid,
   } from "flowbite-svelte-icons";
-  import { auth, db } from "$lib/firebase";
-  import { onAuthStateChanged } from "firebase/auth";
+  import { db } from "$lib/firebase";
   import { goto } from "$app/navigation";
+  import { user } from "$lib/stores/authStore";
   import { marked } from "marked";
+import DOMPurify from "dompurify";
   import {
     collection,
     addDoc,
@@ -179,12 +180,12 @@
 
   // Firebase authentication and load chat history
   onMount(() => {
-    onAuthStateChanged(auth, (user) => {
-      if (user) {
+    const unsub = user.subscribe((u) => {
+      if (u) {
         currentUser = {
-          uid: user.uid,
-          displayName: user.displayName ?? undefined,
-          photoURL: user.photoURL ?? undefined,
+          uid: u.uid,
+          displayName: u.displayName ?? undefined,
+          photoURL: u.photoURL ?? undefined,
         };
         loadChatHistory();
       } else {
@@ -193,6 +194,7 @@
         goto("/");
       }
     });
+    onDestroy(() => unsub());
   });
 
   async function sendMessage() {
@@ -286,7 +288,8 @@
 
   // Render Markdown safely
   function renderMarkdown(text: string): string {
-    return marked.parse(text, { gfm: true, breaks: true });
+    const rawHtml = marked.parse(text, { gfm: true, breaks: true, async: false }) as string;
+    return DOMPurify.sanitize(rawHtml);
   }
 </script>
 
@@ -371,13 +374,13 @@
           placeholder="Ask FitBot about fitness or health..."
           class="rounded-lg h-10 lg:h-12 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400 text-sm lg:text-base flex-1"
           disabled={loading}
-          on:keypress={(e) => e.key === "Enter" && sendMessage()}
+          onkeypress={(e) => e.key === "Enter" && sendMessage()}
         />
         <Button
           color="green"
           size="md"
           class="rounded-lg h-10 lg:h-12 w-10 lg:w-12 flex items-center justify-center transform transition hover:scale-[1.02] dark:enabled:hover:bg-green-700"
-          on:click={sendMessage}
+          onclick={sendMessage}
           disabled={loading || !prompt.trim()}
           aria-label="Send message"
         >
@@ -388,7 +391,7 @@
         color="red"
         size="md"
         class="rounded-lg h-10 lg:h-12 w-full sm:w-auto transform transition hover:scale-[1.02] dark:enabled:hover:bg-red-700 text-sm lg:text-base"
-        on:click={deleteChatHistory}
+        onclick={deleteChatHistory}
         disabled={loading || !currentUser}
         aria-label="Delete chat history"
       >

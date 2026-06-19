@@ -4,8 +4,9 @@
   import { DarkMode } from "flowbite-svelte";
   import { fly, fade } from "svelte/transition";
   import { browser } from "$app/environment";
+  import type { Chart } from "chart.js";
 
-  import { db, auth } from "$lib/firebase";
+  import { db } from "$lib/firebase";
   import {
     collection,
     getDocs,
@@ -15,23 +16,24 @@
     doc,
     getDoc,
   } from "firebase/firestore";
-  import { onAuthStateChanged } from "firebase/auth";
   import { goto } from "$app/navigation";
+  import { user } from "$lib/stores/authStore";
 
   // Data variables
   let weights: { weight: number; timestamp: Date }[] = [];
   let gymDates: { [key: string]: string } = {};
   let currentUser: { uid: string } | null = null;
+  let userHeight: number | null = null;
 
   // Chart references
   let weightCanvas: HTMLCanvasElement;
   let gymCanvas: HTMLCanvasElement;
-  let weightChartInstance: any = null;
-  let gymChartInstance: any = null;
+  let weightChartInstance: Chart | null = null;
+  let gymChartInstance: Chart | null = null;
 
   // Computed properties for weight
   $: currentWeight = weights.length ? weights[weights.length - 1].weight : null;
-  $: currentBMI = currentWeight ? (currentWeight / Math.pow(1.75, 2)).toFixed(2) : null; // Assuming average height of 1.75m
+  $: currentBMI = currentWeight && userHeight ? (currentWeight / Math.pow(userHeight / 100, 2)).toFixed(2) : null;
   $: bmiCategory = getBMICategory(Number(currentBMI));
 
   // Computed properties for gym attendance
@@ -171,6 +173,31 @@
         drawChart("weight");
       };
 
+      const fetchHeight = async () => {
+        if (!currentUser) return;
+        try {
+          const q = query(
+            collection(db, "heights"),
+            where("userId", "==", currentUser.uid),
+            orderBy("timestamp", "desc"),
+            limit(1)
+          );
+          const snapshot = await getDocs(q);
+          if (!snapshot.empty) {
+            userHeight = snapshot.docs[0].data().height;
+          }
+        } catch {
+          const snapshot = await getDocs(
+            query(collection(db, "heights"), where("userId", "==", currentUser.uid))
+          );
+          if (!snapshot.empty) {
+            const docs = snapshot.docs.map(d => d.data());
+            docs.sort((a, b) => b.timestamp.toMillis() - a.timestamp.toMillis());
+            userHeight = docs[0].height;
+          }
+        }
+      };
+
       const fetchGymDates = async () => {
         if (!currentUser) return;
         const docRef = doc(db, "calendars", currentUser.uid);
@@ -183,10 +210,11 @@
         }
       };
 
-      const unsubscribe = onAuthStateChanged(auth, (user) => {
-        if (user) {
-          currentUser = user;
+      const unsubUser = user.subscribe((u) => {
+        if (u) {
+          currentUser = u;
           fetchWeights();
+          fetchHeight();
           fetchGymDates();
         } else {
           currentUser = null;
@@ -195,7 +223,7 @@
       });
 
       cleanup = () => {
-        unsubscribe();
+        unsubUser();
         if (weightChartInstance) weightChartInstance.destroy();
         if (gymChartInstance) gymChartInstance.destroy();
       };
@@ -238,7 +266,7 @@
     const chart = type === "weight" ? weightChartInstance : gymChartInstance;
     if (!chart) return;
     const factor = direction === "in" ? 1.1 : 0.9;
-    chart.zoom(factor, { x: true, y: false });
+    chart.zoom(factor);
   }
 
   function handleResetZoom(type: "weight" | "gym") {
@@ -365,7 +393,7 @@
           <h2 class="text-lg font-semibold dark:text-white">Weight Progress</h2>
           <div class="flex gap-1">
             <button
-              on:click={() => handleZoom("weight", "in")}
+              onclick={() => handleZoom("weight", "in")}
               class="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
               title="Zoom In"
               aria-label="Zoom In"
@@ -386,7 +414,7 @@
               </svg>
             </button>
             <button
-              on:click={() => handleZoom("weight", "out")}
+              onclick={() => handleZoom("weight", "out")}
               class="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
               title="Zoom Out"
               aria-label="Zoom Out"
@@ -407,7 +435,7 @@
               </svg>
             </button>
             <button
-              on:click={() => handleResetZoom("weight")}
+              onclick={() => handleResetZoom("weight")}
               class="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
               title="Reset Zoom"
               aria-label="Reset Zoom"

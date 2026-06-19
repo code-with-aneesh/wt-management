@@ -13,10 +13,5 @@ export default defineConfig({
             includeAssets: ['favicon.svg', 'favicon.ico', 'robots.txt', 'apple-touch-icon.png'],
         })
     ],
-    ssr: {
-        noExternal: ['gsap']
-    },
-    optimizeDeps: {
-        include: ['gsap', 'gsap/ScrollTrigger']
-    }
+
 });

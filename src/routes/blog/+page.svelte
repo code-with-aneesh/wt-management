@@ -1,10 +1,10 @@
 <script lang="ts">
-  import { onMount } from "svelte";
-  import { db, auth } from "$lib/firebase";
+  import { onMount, onDestroy } from "svelte";
+  import { db } from "$lib/firebase";
   import { DarkMode } from "flowbite-svelte";
   import { collection, query, orderBy, getDocs, addDoc, Timestamp } from "firebase/firestore";
-  import { onAuthStateChanged } from "firebase/auth";
   import { goto } from "$app/navigation";
+  import { user } from "$lib/stores/authStore";
   import { marked } from "marked";
   import DOMPurify from "dompurify";
 
@@ -28,17 +28,9 @@
   let title = "";
   let content = "";
 
-  // Markdown renderer
-  const renderer = new marked.Renderer();
-  marked.setOptions({
-    renderer,
-    gfm: true,
-    breaks: true,
-  });
-
   // Sanitize markdown output
   function renderMarkdown(content: string): string {
-    const rawHtml = marked.parse(content) as string; // Ensure synchronous parsing
+    const rawHtml = marked.parse(content, { gfm: true, breaks: true, async: false }) as string;
     return DOMPurify.sanitize(rawHtml);
   }
 
@@ -107,14 +99,14 @@
     }
   }
 
-  onMount(async () => {
-    onAuthStateChanged(auth, async (user) => {
-      if (!user) {
+  onMount(() => {
+    const unsub = user.subscribe(async (u) => {
+      if (!u) {
         console.log("User not authenticated, redirecting to /");
         goto("/");
         return;
       }
-      currentUser = { uid: user.uid, displayName: user.displayName ?? undefined };
+      currentUser = { uid: u.uid, displayName: u.displayName ?? undefined };
 
       try {
         // Fetch posts
@@ -126,6 +118,7 @@
         loading = false;
       }
     });
+    onDestroy(() => unsub());
   });
 
   // Format date
@@ -293,7 +286,7 @@
             ></textarea>
           </div>
           <button
-            on:click={handleSubmit}
+            onclick={handleSubmit}
             class="px-4 py-2 bg-blue-500 dark:bg-blue-600 text-white rounded-lg hover:bg-blue-600 dark:hover:bg-blue-700 transition-colors"
           >
             Publish Post
