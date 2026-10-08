@@ -108,6 +108,7 @@ npm run preview
 - `/bmi` – BMI, BMR, and calorie calculator
 - `/gym` – Interactive gym calendar
 - `/input` – Multi-section health data input form
+- `/images` – Encode, save, and browse personal images with timestamps using Firestore text chunks
 - `/updateweights` – Weight history management
 - `/about` – App info and team details
 

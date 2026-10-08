@@ -99,6 +99,12 @@
               >
                 Data Input
               </a>
+              <a
+                href="/images"
+                class="text-gray-100 dark:text-gray-300 hover:text-gray-300 dark:hover:text-white font-medium text-sm transition-colors duration-200"
+              >
+                My Images
+              </a>
             </div>
 
             <!-- User Controls -->
@@ -231,6 +237,13 @@
               onclick={toggleMenu}
             >
               Data Input
+            </a>
+            <a
+              href="/images"
+              class="text-gray-100 dark:text-gray-300 hover:text-gray-400 dark:hover:text-white py-2 transition-colors"
+              onclick={toggleMenu}
+            >
+              My Images
             </a>
 
             <div
