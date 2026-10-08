@@ -9,7 +9,6 @@
   interface SavedImage {
     id: string;
     dataUrl: string;
-    fileName: string;
     contentType: string;
     size: number;
     tag: ImageTag | null;
@@ -17,6 +16,8 @@
   }
 
   type ImageTag = "Gym" | "Food";
+  type TagFilter = "All" | ImageTag;
+  type SortOption = "newest" | "oldest" | "largest";
 
   let currentUser: { uid: string } | null = null;
   let images: SavedImage[] = [];
@@ -28,6 +29,8 @@
   let successMessage = "";
   let uploadStatus = "";
   let selectedTag: ImageTag = "Gym";
+  let activeTagFilter: TagFilter = "All";
+  let sortOption: SortOption = "newest";
   let deletingImageId = "";
   let fileInput: HTMLInputElement;
   let previewUrls: string[] = [];
@@ -87,7 +90,6 @@
           return {
             id: imageDoc.id,
             dataUrl: `data:${data.contentType};base64,${encodedImage}`,
-            fileName: data.fileName as string,
             contentType: data.contentType as string,
             size: Number(data.size || 0),
             tag: data.tag === "Gym" || data.tag === "Food" ? data.tag : null,
@@ -148,7 +150,6 @@
 
         batch.set(imageDocument, {
           userId: currentUser.uid,
-          fileName: file.name,
           contentType: compressed.contentType,
           size: file.size,
           storedSize: compressed.size,
@@ -187,7 +188,7 @@
 
   async function deleteImage(image: SavedImage) {
     if (!currentUser || deletingImageId) return;
-    if (!window.confirm(`Delete "${image.fileName}"? This cannot be undone.`)) return;
+    if (!window.confirm("Delete this image? This cannot be undone.")) return;
 
     deletingImageId = image.id;
     errorMessage = "";
@@ -293,6 +294,14 @@
       ? "bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-300"
       : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300";
   }
+
+  $: filteredImages = images
+    .filter((image) => activeTagFilter === "All" || image.tag === activeTagFilter)
+    .sort((a, b) => {
+      if (sortOption === "oldest") return a.uploadedAt.getTime() - b.uploadedAt.getTime();
+      if (sortOption === "largest") return b.size - a.size;
+      return b.uploadedAt.getTime() - a.uploadedAt.getTime();
+    });
 </script>
 
 <svelte:head>
@@ -316,8 +325,8 @@
         </p>
       </div>
       <div class="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm shadow-sm dark:border-gray-700 dark:bg-gray-800">
-        <span class="font-semibold text-slate-900 dark:text-white">{images.length}</span>
-        <span class="text-slate-500 dark:text-gray-400"> {images.length === 1 ? "image" : "images"} saved</span>
+        <span class="font-semibold text-slate-900 dark:text-white">{filteredImages.length}</span>
+        <span class="text-slate-500 dark:text-gray-400"> {filteredImages.length === 1 ? "image" : "images"} shown</span>
       </div>
     </div>
 
@@ -372,6 +381,38 @@
       <div class="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300">{successMessage}</div>
     {/if}
 
+    <div class="mb-6 flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800 sm:flex-row sm:items-center sm:justify-between">
+      <div class="flex flex-wrap items-center gap-2">
+        <span class="mr-1 text-sm font-semibold text-slate-700 dark:text-gray-300">Show:</span>
+        {#each ["All", "Gym", "Food"] as filter}
+          <button
+            type="button"
+            class:shadow-sm={activeTagFilter === filter}
+            class:opacity-50={activeTagFilter !== filter}
+            class={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+              filter === "Gym"
+                ? tagClasses("Gym")
+                : filter === "Food"
+                  ? tagClasses("Food")
+                  : "bg-slate-100 text-slate-700 dark:bg-gray-700 dark:text-gray-200"
+            }`}
+            aria-pressed={activeTagFilter === filter}
+            onclick={() => activeTagFilter = filter as TagFilter}
+          >
+            {filter}
+          </button>
+        {/each}
+      </div>
+      <label class="flex items-center gap-2 text-sm text-slate-600 dark:text-gray-300">
+        <span class="font-semibold">Sort:</span>
+        <select bind:value={sortOption} class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100">
+          <option value="newest">Newest first</option>
+          <option value="oldest">Oldest first</option>
+          <option value="largest">Largest first</option>
+        </select>
+      </label>
+    </div>
+
     {#if isLoading}
       <div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {#each [1, 2, 3] as _}
@@ -384,13 +425,19 @@
         <h2 class="text-xl font-semibold text-slate-900 dark:text-white">Your gallery is ready</h2>
         <p class="mx-auto mt-2 max-w-md text-sm text-slate-500 dark:text-gray-400">Upload your first image above and it will stay safely connected to your account.</p>
       </div>
+    {:else if filteredImages.length === 0}
+      <div class="rounded-3xl border border-slate-200 bg-white px-6 py-16 text-center dark:border-gray-800 dark:bg-gray-800/60">
+        <div class="mx-auto mb-4 text-5xl">⌁</div>
+        <h2 class="text-xl font-semibold text-slate-900 dark:text-white">No matching images</h2>
+        <p class="mx-auto mt-2 max-w-md text-sm text-slate-500 dark:text-gray-400">Try another tag filter to view more of your gallery.</p>
+      </div>
     {:else}
       <div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        {#each images as image}
+        {#each filteredImages as image}
           <div class="group overflow-hidden rounded-3xl border border-slate-200 bg-white text-left shadow-sm transition-all hover:-translate-y-1 hover:shadow-xl dark:border-gray-700 dark:bg-gray-800">
-            <button class="block w-full text-left" aria-label={`Open ${image.fileName}`} onclick={() => selectedImage = image}>
+            <button class="block w-full text-left" aria-label="Open image preview" onclick={() => selectedImage = image}>
               <div class="relative aspect-[4/3] overflow-hidden bg-slate-100 dark:bg-gray-900">
-                <img src={image.dataUrl} alt={image.fileName} loading="lazy" class="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+                <img src={image.dataUrl} alt={image.tag ? `${image.tag} image` : "Saved image"} loading="lazy" class="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
                 <div class="absolute inset-0 flex items-center justify-center bg-slate-950/0 transition group-hover:bg-slate-950/35">
                   <span class="scale-75 rounded-full bg-white/90 p-3 text-slate-900 opacity-0 shadow-lg transition group-hover:scale-100 group-hover:opacity-100">
                     <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
@@ -399,7 +446,7 @@
               </div>
               <div class="p-4 pb-2">
                 <div class="flex items-center justify-between gap-3">
-                  <p class="truncate text-sm font-semibold text-slate-800 dark:text-gray-100">{image.fileName}</p>
+                  <p class="text-sm font-semibold text-slate-800 dark:text-gray-100">{image.tag || "Uncategorized"}</p>
                   {#if image.tag}
                     <span class={`shrink-0 rounded-full px-2 py-1 text-[10px] font-bold ${tagClasses(image.tag)}`}>{image.tag}</span>
                   {/if}
@@ -438,10 +485,10 @@
       <button class="absolute -right-2 -top-12 rounded-full bg-white/10 p-2 text-white transition hover:bg-white/20 sm:-right-12 sm:top-0" aria-label="Close image preview" onclick={() => selectedImage = null}>
         <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
       </button>
-      <img src={selectedImage.dataUrl} alt={selectedImage.fileName} class="max-h-[78vh] max-w-full rounded-2xl object-contain shadow-2xl" />
+      <img src={selectedImage.dataUrl} alt={selectedImage.tag ? `${selectedImage.tag} image` : "Saved image"} class="max-h-[78vh] max-w-full rounded-2xl object-contain shadow-2xl" />
       <div class="mt-3 flex items-center justify-between gap-4 text-sm text-white">
         <span class="flex min-w-0 items-center gap-2">
-          <span class="truncate">{selectedImage.fileName}</span>
+          <span>{selectedImage.tag || "Uncategorized"}</span>
           {#if selectedImage.tag}
             <span class={`shrink-0 rounded-full px-2 py-1 text-[10px] font-bold ${tagClasses(selectedImage.tag)}`}>{selectedImage.tag}</span>
           {/if}
