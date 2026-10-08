@@ -4,11 +4,12 @@
   import { browser } from "$app/environment";
   import { user, isLoadingAuth } from "$lib/stores/authStore";
   import { db } from "$lib/firebase";
-  import { collection, doc, getDocs, query, setDoc, Timestamp, where, writeBatch } from "firebase/firestore";
+  import { collection, doc, getDocs, query, Timestamp, where, writeBatch } from "firebase/firestore";
 
   interface SavedImage {
     id: string;
-    dataUrl: string;
+    thumbnailDataUrl: string;
+    dataUrl?: string;
     contentType: string;
     size: number;
     tag: ImageTag | null;
@@ -22,6 +23,7 @@
   let currentUser: { uid: string } | null = null;
   let images: SavedImage[] = [];
   let selectedImage: SavedImage | null = null;
+  let isLoadingPreview = false;
   let isLoading = true;
   let isUploading = false;
   let dragActive = false;
@@ -63,6 +65,7 @@
   // Keep each encoded chunk comfortably below Firestore's 1 MiB document limit.
   const chunkSize = 700_000;
   const maxImageDimension = 1600;
+  const thumbnailDimension = 480;
   const webpQuality = 0.78;
 
   async function loadImages(uid: string) {
@@ -76,20 +79,17 @@
 
       images = (await Promise.all(snapshot.docs.map(async (imageDoc) => {
           const data = imageDoc.data();
-          const chunksSnapshot = await getDocs(
-            query(collection(db, "images", imageDoc.id, "chunks"))
-          );
-          const encodedImage = chunksSnapshot.docs
-            .sort((a, b) => Number(a.data().index || 0) - Number(b.data().index || 0))
-            .map((chunk) => chunk.data().data as string)
-            .join("");
+          const thumbnailChunks = await readChunks(imageDoc.id, "thumbnailChunks");
+          const fallbackChunks = thumbnailChunks.length
+            ? thumbnailChunks
+            : await readChunks(imageDoc.id, "chunks");
           const timestamp = data.uploadedAt instanceof Timestamp
             ? data.uploadedAt.toDate()
             : new Date(data.uploadedAt || Date.now());
 
           return {
             id: imageDoc.id,
-            dataUrl: `data:${data.contentType};base64,${encodedImage}`,
+            thumbnailDataUrl: `data:${data.thumbnailContentType || data.contentType};base64,${fallbackChunks}`,
             contentType: data.contentType as string,
             size: Number(data.size || 0),
             tag: data.tag === "Gym" || data.tag === "Food" ? data.tag : null,
@@ -102,6 +102,35 @@
       errorMessage = "We couldn't load your images. Please try again.";
     } finally {
       isLoading = false;
+    }
+
+    async function readChunks(imageId: string, collectionName: "chunks" | "thumbnailChunks") {
+      const chunksSnapshot = await getDocs(
+        query(collection(db, "images", imageId, collectionName))
+      );
+      return chunksSnapshot.docs
+        .sort((a, b) => Number(a.data().index || 0) - Number(b.data().index || 0))
+        .map((chunk) => chunk.data().data as string)
+        .join("");
+    }
+
+    async function openPreview(image: SavedImage) {
+      selectedImage = image;
+      if (image.dataUrl) return;
+
+      isLoadingPreview = true;
+      try {
+        const encodedImage = await readChunks(image.id, "chunks");
+        selectedImage = {
+          ...image,
+          dataUrl: `data:${image.contentType};base64,${encodedImage}`
+        };
+      } catch (error) {
+        console.error("Failed to load full image:", error);
+        errorMessage = "We couldn't load the full image. Please try again.";
+      } finally {
+        isLoadingPreview = false;
+      }
     }
   }
 
@@ -143,19 +172,24 @@
         const file = imageFiles[fileIndex];
         uploadStatus = `Optimizing image ${fileIndex + 1} of ${imageFiles.length}...`;
         const compressed = await compressImage(file);
+        const thumbnail = await compressImage(file, thumbnailDimension);
         const dataUrl = compressed.dataUrl;
         const encodedImage = dataUrl.split(",", 2)[1];
+        const encodedThumbnail = thumbnail.dataUrl.split(",", 2)[1];
         const imageDocument = doc(collection(db, "images"));
         const batch = writeBatch(db);
 
         batch.set(imageDocument, {
           userId: currentUser.uid,
           contentType: compressed.contentType,
+          thumbnailContentType: thumbnail.contentType,
           size: file.size,
           storedSize: compressed.size,
+          thumbnailSize: thumbnail.size,
           tag: selectedTag,
           uploadedAt: Timestamp.now(),
-          chunkCount: Math.ceil(encodedImage.length / chunkSize)
+          chunkCount: Math.ceil(encodedImage.length / chunkSize),
+          thumbnailChunkCount: Math.ceil(encodedThumbnail.length / chunkSize)
         });
 
         const chunkCollection = collection(db, "images", imageDocument.id, "chunks");
@@ -164,6 +198,14 @@
           batch.set(chunkDocument, {
             index: Math.floor(index / chunkSize),
             data: encodedImage.slice(index, index + chunkSize)
+          });
+        }
+        const thumbnailCollection = collection(db, "images", imageDocument.id, "thumbnailChunks");
+        for (let index = 0; index < encodedThumbnail.length; index += chunkSize) {
+          const thumbnailDocument = doc(thumbnailCollection);
+          batch.set(thumbnailDocument, {
+            index: Math.floor(index / chunkSize),
+            data: encodedThumbnail.slice(index, index + chunkSize)
           });
         }
 
@@ -195,11 +237,18 @@
     successMessage = "";
 
     try {
-      const chunksSnapshot = await getDocs(collection(db, "images", image.id, "chunks"));
+      const [chunksSnapshot, thumbnailChunksSnapshot] = await Promise.all([
+        getDocs(collection(db, "images", image.id, "chunks")),
+        getDocs(collection(db, "images", image.id, "thumbnailChunks"))
+      ]);
       const operations = [
         ...chunksSnapshot.docs.map((chunkDocument) => ({
           path: chunkDocument.ref,
           type: "chunk" as const
+        })),
+        ...thumbnailChunksSnapshot.docs.map((chunkDocument) => ({
+          path: chunkDocument.ref,
+          type: "thumbnail" as const
         })),
         { path: doc(db, "images", image.id), type: "image" as const }
       ];
@@ -223,7 +272,7 @@
     }
   }
 
-  async function compressImage(file: File): Promise<{ dataUrl: string; contentType: string; size: number }> {
+  async function compressImage(file: File, maximumDimension = maxImageDimension): Promise<{ dataUrl: string; contentType: string; size: number }> {
     const sourceUrl = URL.createObjectURL(file);
 
     try {
@@ -234,7 +283,7 @@
         element.src = sourceUrl;
       });
 
-      const scale = Math.min(1, maxImageDimension / Math.max(image.naturalWidth, image.naturalHeight));
+      const scale = Math.min(1, maximumDimension / Math.max(image.naturalWidth, image.naturalHeight));
       const canvas = document.createElement("canvas");
       canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
       canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
@@ -435,9 +484,9 @@
       <div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {#each filteredImages as image}
           <div class="group overflow-hidden rounded-3xl border border-slate-200 bg-white text-left shadow-sm transition-all hover:-translate-y-1 hover:shadow-xl dark:border-gray-700 dark:bg-gray-800">
-            <button class="block w-full text-left" aria-label="Open image preview" onclick={() => selectedImage = image}>
+            <button class="block w-full text-left" aria-label="Open image preview" onclick={() => openPreview(image)}>
               <div class="relative aspect-[4/3] overflow-hidden bg-slate-100 dark:bg-gray-900">
-                <img src={image.dataUrl} alt={image.tag ? `${image.tag} image` : "Saved image"} loading="lazy" class="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+                <img src={image.thumbnailDataUrl} alt={image.tag ? `${image.tag} image` : "Saved image"} loading="lazy" decoding="async" class="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
                 <div class="absolute inset-0 flex items-center justify-center bg-slate-950/0 transition group-hover:bg-slate-950/35">
                   <span class="scale-75 rounded-full bg-white/90 p-3 text-slate-900 opacity-0 shadow-lg transition group-hover:scale-100 group-hover:opacity-100">
                     <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
@@ -485,7 +534,13 @@
       <button class="absolute -right-2 -top-12 rounded-full bg-white/10 p-2 text-white transition hover:bg-white/20 sm:-right-12 sm:top-0" aria-label="Close image preview" onclick={() => selectedImage = null}>
         <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
       </button>
-      <img src={selectedImage.dataUrl} alt={selectedImage.tag ? `${selectedImage.tag} image` : "Saved image"} class="max-h-[78vh] max-w-full rounded-2xl object-contain shadow-2xl" />
+      {#if isLoadingPreview || !selectedImage.dataUrl}
+        <div class="flex h-[50vh] w-[min(80vw,50rem)] items-center justify-center rounded-2xl bg-white/10 text-sm text-white/80">
+          Loading full image...
+        </div>
+      {:else}
+        <img src={selectedImage.dataUrl} alt={selectedImage.tag ? `${selectedImage.tag} image` : "Saved image"} decoding="async" class="max-h-[78vh] max-w-full rounded-2xl object-contain shadow-2xl" />
+      {/if}
       <div class="mt-3 flex items-center justify-between gap-4 text-sm text-white">
         <span class="flex min-w-0 items-center gap-2">
           <span>{selectedImage.tag || "Uncategorized"}</span>
