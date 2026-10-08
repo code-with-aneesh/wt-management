@@ -34,6 +34,7 @@
   let activeTagFilter: TagFilter = "All";
   let sortOption: SortOption = "newest";
   let deletingImageId = "";
+  let previewObjectUrl = "";
   let fileInput: HTMLInputElement;
   let previewUrls: string[] = [];
 
@@ -56,6 +57,7 @@
   onDestroy(() => {
     unsubscribe();
     previewUrls.forEach((url) => URL.revokeObjectURL(url));
+    if (previewObjectUrl) URL.revokeObjectURL(previewObjectUrl);
   });
 
   $: if (currentUser) {
@@ -115,21 +117,47 @@
     }
 
     async function openPreview(image: SavedImage) {
-      selectedImage = image;
-      if (image.dataUrl) return;
+      if (previewObjectUrl) {
+        URL.revokeObjectURL(previewObjectUrl);
+        previewObjectUrl = "";
+      }
+      selectedImage = { ...image, dataUrl: image.thumbnailDataUrl };
+      if (image.dataUrl) {
+        selectedImage = image;
+        return;
+      }
 
       isLoadingPreview = true;
       try {
         const encodedImage = await readChunks(image.id, "chunks");
+        previewObjectUrl = base64ToObjectUrl(encodedImage, image.contentType);
         selectedImage = {
           ...image,
-          dataUrl: `data:${image.contentType};base64,${encodedImage}`
+          dataUrl: previewObjectUrl
         };
       } catch (error) {
         console.error("Failed to load full image:", error);
         errorMessage = "We couldn't load the full image. Please try again.";
       } finally {
         isLoadingPreview = false;
+      }
+
+      function base64ToObjectUrl(encodedImage: string, contentType: string) {
+        const binary = atob(encodedImage);
+        const bytes = new Uint8Array(binary.length);
+        for (let index = 0; index < binary.length; index += 1) {
+          bytes[index] = binary.charCodeAt(index);
+        }
+        return URL.createObjectURL(new Blob([bytes], { type: contentType }));
+      }
+
+      function closePreview() {
+        selectedImage = null;
+        isLoadingPreview = false;
+        if (previewObjectUrl) {
+          URL.revokeObjectURL(previewObjectUrl);
+          previewObjectUrl = "";
+        }
       }
     }
   }
@@ -261,7 +289,7 @@
 
       images = images.filter((savedImage) => savedImage.id !== image.id);
       if (selectedImage?.id === image.id) {
-        selectedImage = null;
+        closePreview();
       }
       successMessage = "Image deleted.";
     } catch (error) {
@@ -529,18 +557,24 @@
 </div>
 
 {#if selectedImage}
-  <div class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/90 p-4 backdrop-blur-sm" role="presentation" onclick={(event) => { if (event.target === event.currentTarget) selectedImage = null; }}>
-    <div class="relative max-h-[90vh] max-w-5xl">
-      <button class="absolute -right-2 -top-12 rounded-full bg-white/10 p-2 text-white transition hover:bg-white/20 sm:-right-12 sm:top-0" aria-label="Close image preview" onclick={() => selectedImage = null}>
+  <div class="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-slate-950/90 p-3 backdrop-blur-sm sm:p-4" role="presentation" onclick={(event) => { if (event.target === event.currentTarget) closePreview(); }}>
+    <div class="relative w-full max-w-5xl py-8 sm:py-4">
+      <button class="absolute right-0 top-0 z-10 rounded-full bg-black/55 p-3 text-white shadow-lg transition hover:bg-black/75 sm:-right-12 sm:top-0 sm:bg-white/10" aria-label="Close image preview" onclick={closePreview}>
         <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
       </button>
-      {#if isLoadingPreview || !selectedImage.dataUrl}
-        <div class="flex h-[50vh] w-[min(80vw,50rem)] items-center justify-center rounded-2xl bg-white/10 text-sm text-white/80">
-          Loading full image...
-        </div>
-      {:else}
-        <img src={selectedImage.dataUrl} alt={selectedImage.tag ? `${selectedImage.tag} image` : "Saved image"} decoding="async" class="max-h-[78vh] max-w-full rounded-2xl object-contain shadow-2xl" />
-      {/if}
+      <div class="flex max-h-[78vh] max-w-full items-center justify-center overflow-hidden rounded-2xl bg-black/20 shadow-2xl">
+        <img
+          src={selectedImage.dataUrl || selectedImage.thumbnailDataUrl}
+          alt={selectedImage.tag ? `${selectedImage.tag} image` : "Saved image"}
+          decoding="async"
+          class="max-h-[78vh] max-w-[calc(100vw-2rem)] object-contain sm:max-w-[calc(100vw-6rem)]"
+        />
+        {#if isLoadingPreview}
+          <span class="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-black/65 px-3 py-1.5 text-xs text-white/90">
+            Loading full image...
+          </span>
+        {/if}
+      </div>
       <div class="mt-3 flex items-center justify-between gap-4 text-sm text-white">
         <span class="flex min-w-0 items-center gap-2">
           <span>{selectedImage.tag || "Uncategorized"}</span>
