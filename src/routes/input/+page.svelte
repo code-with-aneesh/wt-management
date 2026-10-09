@@ -25,6 +25,7 @@
     CheckCircleOutline,
     ExclamationCircleOutline,
   } from "flowbite-svelte-icons";
+  import { displayWeightToKg, setWeightUnit, weightUnit, kgToDisplayWeight } from "$lib/stores/weightUnit";
 
   // Form state
   let weight = "";
@@ -87,6 +88,7 @@
       weightError = "Weight is required";
       return false;
     }
+
     if (isNaN(parsedWeight)) {
       weightError = "Please enter a valid number";
       return false;
@@ -97,6 +99,17 @@
     }
     weightError = "";
     return true;
+  }
+
+  function changeWeightUnit(nextUnit: "kg" | "lbs") {
+    if (nextUnit === $weightUnit) return;
+
+    const parsedWeight = parseFloat(weight);
+    if (!isNaN(parsedWeight) && parsedWeight > 0) {
+      const weightKg = displayWeightToKg(parsedWeight, $weightUnit);
+      weight = kgToDisplayWeight(weightKg, nextUnit).toFixed(1);
+    }
+    setWeightUnit(nextUnit);
   }
 
   function validateAge(): boolean {
@@ -190,7 +203,7 @@
     weightLoading = true;
     try {
       await addDoc(collection(db, "weights"), {
-        weight: parseFloat(weight),
+        weight: displayWeightToKg(parseFloat(weight), $weightUnit),
         timestamp: serverTimestamp(),
         userId: currentUser.uid,
       });
@@ -301,7 +314,31 @@
         <!-- Weight Section -->
         <div class="animate-slide-in">
           <div class="flex justify-between items-center mb-3">
-            <Label class="text-lg sm:text-xl lg:text-2xl font-semibold dark:text-gray-300">Weight (kg)</Label>
+            <Label class="text-lg sm:text-xl lg:text-2xl font-semibold dark:text-gray-300">Weight</Label>
+            <div class="flex items-center rounded-lg border border-gray-200 bg-gray-50 p-1 dark:border-gray-600 dark:bg-gray-700" aria-label="Weight input unit">
+              <button
+                type="button"
+                class:font-bold={$weightUnit === "kg"}
+                class:bg-white={$weightUnit === "kg"}
+                class:dark:bg-gray-600={$weightUnit === "kg"}
+                class="rounded-md px-2 py-1 text-xs text-gray-700 shadow-sm transition dark:text-gray-200"
+                aria-pressed={$weightUnit === "kg"}
+                onclick={() => changeWeightUnit("kg")}
+              >
+                kg
+              </button>
+              <button
+                type="button"
+                class:font-bold={$weightUnit === "lbs"}
+                class:bg-white={$weightUnit === "lbs"}
+                class:dark:bg-gray-600={$weightUnit === "lbs"}
+                class="rounded-md px-2 py-1 text-xs text-gray-700 transition dark:text-gray-200"
+                aria-pressed={$weightUnit === "lbs"}
+                onclick={() => changeWeightUnit("lbs")}
+              >
+                lbs
+              </button>
+            </div>
             {#if weightError}
               <span class="text-red-600 dark:text-red-500 text-sm">{weightError}</span>
             {/if}
@@ -309,7 +346,7 @@
           <Input
             type="number"
             bind:value={weight}
-            placeholder="72.5"
+            placeholder={$weightUnit === "kg" ? "72.5" : "160"}
             min="1"
             step="0.1"
             class="rounded-lg h-10 lg:h-12 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400 text-sm lg:text-base"

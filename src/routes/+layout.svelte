@@ -7,6 +7,7 @@
   import { onDestroy } from "svelte";
   import { fade, slide } from "svelte/transition";
   import { cubicOut } from "svelte/easing";
+  import { toggleWeightUnit, weightUnit } from "$lib/stores/weightUnit";
 
   let currentUser: { displayName: string; photoURL: string } | null = null;
   let menuOpen = false;
@@ -75,24 +76,28 @@
               >
                 Gym Tracker
               </a>
+              <!--
               <a
                 href="/leaderboard"
                 class="text-gray-100 dark:text-gray-300 hover:text-gray-300 dark:hover:text-white font-medium text-sm transition-colors duration-200"
               >
                 Leaderboard
               </a>
+              -->
               <a
                 href="/bmi"
                 class="text-gray-100 dark:text-gray-300 hover:text-gray-300 dark:hover:text-white font-medium text-sm transition-colors duration-200"
               >
                 BMI Analyzer
               </a>
+              <!--
               <a
                 href="/blog"
                 class="text-gray-100 dark:text-gray-300 hover:text-gray-300 dark:hover:text-white font-medium text-sm transition-colors duration-200"
               >
                 Blog
               </a>
+              -->
               <a
                 href="/input"
                 class="text-gray-100 dark:text-gray-300 hover:text-gray-300 dark:hover:text-white font-medium text-sm transition-colors duration-200"
@@ -113,6 +118,15 @@
               <DarkMode
                 class="text-gray-300 hover:bg-gray-700 dark:hover:bg-gray-600 rounded-lg p-2"
               />
+              <button
+                type="button"
+                onclick={toggleWeightUnit}
+                class="rounded-lg border border-gray-700 px-2.5 py-1.5 text-xs font-semibold text-gray-200 transition hover:border-blue-500 hover:bg-gray-800"
+                aria-label="Toggle weight unit"
+                title="Toggle weight unit"
+              >
+                {$weightUnit}
+              </button>
 
               <!-- User Profile -->
               <div class="hidden sm:flex items-center gap-3">
@@ -195,6 +209,15 @@
           class="container mx-auto px-4 py-4"
         >
           <div class="flex flex-col space-y-4">
+            <button
+          type="button"
+          onclick={toggleWeightUnit}
+          class="flex items-center justify-between py-2 text-left text-gray-100 dark:text-gray-300"
+          aria-label="Toggle weight unit"
+            >
+          <span>Weight unit</span>
+          <span class="rounded-lg border border-gray-700 px-2.5 py-1 text-xs font-semibold">{$weightUnit}</span>
+            </button>
             <a
               href="/dashboard"
               class="text-gray-100 dark:text-gray-300 hover:text-gray-400 dark:hover:text-white py-2 transition-colors"
@@ -210,6 +233,7 @@
             >
               Gym Tracker
             </a>
+            <!--
             <a
               href="/leaderboard"
               class="text-gray-100 dark:text-gray-300 hover:text-gray-400 dark:hover:text-white py-2 transition-colors"
@@ -217,6 +241,7 @@
             >
               Leaderboard
             </a>
+            -->
             <a
               href="/bmi"
               class="text-gray-100 dark:text-gray-300 hover:text-gray-400 dark:hover:text-white py-2 transition-colors"
@@ -224,6 +249,7 @@
             >
               BMI Analyzer
             </a>
+            <!--
             <a
               href="/blog"
               class="text-gray-100 dark:text-gray-300 hover:text-gray-400 dark:hover:text-white py-2 transition-colors"
@@ -231,6 +257,7 @@
             >
               Blog
             </a>
+            -->
             <a
               href="/input"
               class="text-gray-100 dark:text-gray-300 hover:text-gray-400 dark:hover:text-white py-2 transition-colors"

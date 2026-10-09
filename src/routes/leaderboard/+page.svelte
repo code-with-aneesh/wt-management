@@ -14,6 +14,7 @@
     } from "firebase/firestore";
     import { onAuthStateChanged } from "firebase/auth";
     import { goto } from "$app/navigation";
+    import { formatWeight, weightUnit } from "$lib/stores/weightUnit";
   
     // Data variables
     let leaderboardData: {
@@ -255,7 +256,7 @@
                 class="px-6 py-3 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                 onclick={() => handleSort("weightLoss")}
               >
-                Weight Loss (kg)
+                Weight Loss ({$weightUnit})
                 {#if sortKey === "weightLoss"}
                   <span>{sortDirection === "asc" ? "↑" : "↓"}</span>
                 {/if}
@@ -318,11 +319,11 @@
                 <td class="px-6 py-4">
                   {#if user.weightLoss !== null}
                     {#if user.weightLoss > 0}
-                      <span>{user.weightLoss} ↓</span>
+                      <span>{formatWeight(user.weightLoss, $weightUnit)} {$weightUnit} ↓</span>
                     {:else if user.weightLoss < 0}
-                      <span>{Math.abs(user.weightLoss)} ↑</span>
+                      <span>{formatWeight(Math.abs(user.weightLoss), $weightUnit)} {$weightUnit} ↑</span>
                     {:else}
-                      <span>0</span>
+                      <span>0 {$weightUnit}</span>
                     {/if}
                   {:else}
                     N/A

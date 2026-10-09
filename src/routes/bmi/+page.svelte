@@ -14,6 +14,7 @@
   } from "firebase/firestore";
   import { goto } from "$app/navigation";
   import { user } from "$lib/stores/authStore";
+  import { formatWeight, weightUnit } from "$lib/stores/weightUnit";
 
   // User Data
   let currentUser: { uid: string } | null = null;
@@ -238,7 +239,7 @@
           <div class="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl">
             <p class="text-sm text-gray-600 dark:text-gray-300 mb-1">Weight</p>
             <p class="text-2xl font-bold text-gray-900 dark:text-white">
-              {lastWeight ? `${lastWeight.toFixed(1)} kg` : "--"}
+              {lastWeight ? `${formatWeight(lastWeight, $weightUnit)} ${$weightUnit}` : "--"}
             </p>
           </div>
 
@@ -339,9 +340,10 @@
               Healthy Weight Range
             </p>
             <p class="text-xl font-semibold text-gray-900 dark:text-white">
-              {healthyWeightRange.min.toFixed(1)} - {healthyWeightRange.max.toFixed(
-                1
-              )} kg
+              {formatWeight(healthyWeightRange.min, $weightUnit)} - {formatWeight(
+                healthyWeightRange.max,
+                $weightUnit
+              )} {$weightUnit}
             </p>
           </div>
         {/if}
@@ -413,13 +415,13 @@
             {#if lastWeight < healthyWeightRange.min}
               <div class="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-lg">
                 <p class="text-yellow-800 dark:text-yellow-200 font-medium">
-                  Under by {(healthyWeightRange.min - lastWeight).toFixed(1)} kg
+                  Under by {formatWeight(healthyWeightRange.min - lastWeight, $weightUnit)} {$weightUnit}
                 </p>
               </div>
             {:else if lastWeight > healthyWeightRange.max}
               <div class="bg-red-50 dark:bg-red-900/20 p-4 rounded-lg">
                 <p class="text-red-800 dark:text-red-200 font-medium">
-                  Over by {(lastWeight - healthyWeightRange.max).toFixed(1)} kg
+                  Over by {formatWeight(lastWeight - healthyWeightRange.max, $weightUnit)} {$weightUnit}
                 </p>
               </div>
             {:else}

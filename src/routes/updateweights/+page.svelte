@@ -15,6 +15,7 @@
   import { goto } from "$app/navigation";
   import { Button, Card, Alert, Table, TableBody, TableHead, TableHeadCell, TableBodyCell } from "flowbite-svelte";
   import { CheckCircleOutline, ExclamationCircleOutline, TrashBinOutline, CloseCircleOutline } from "flowbite-svelte-icons";
+  import { formatWeight, weightUnit } from "$lib/stores/weightUnit";
 
   // Data state
   let weights: { id: string; weight: number; timestamp: Date }[] = [];
@@ -207,14 +208,14 @@
           aria-label="Weight records table"
         >
           <TableHead>
-            <TableHeadCell class="text-left text-xs sm:text-base text-gray-700 dark:text-gray-200 py-1 sm:py-3 w-1/3 truncate">Weight (kg)</TableHeadCell>
+            <TableHeadCell class="text-left text-xs sm:text-base text-gray-700 dark:text-gray-200 py-1 sm:py-3 w-1/3 truncate">Weight ({$weightUnit})</TableHeadCell>
             <TableHeadCell class="text-left text-xs sm:text-base text-gray-700 dark:text-gray-200 py-1 sm:py-3 w-1/3 truncate">Date</TableHeadCell>
             <TableHeadCell class="text-left text-xs sm:text-base text-gray-700 dark:text-gray-200 py-1 sm:py-3 w-1/3 truncate">Action</TableHeadCell>
           </TableHead>
           <TableBody>
             {#each paginatedWeights as { id, weight, timestamp }}
               <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors animate-fade-in">
-                <TableBodyCell class="text-gray-800 dark:text-gray-200 text-xs sm:text-base py-1 sm:py-2 truncate">{weight.toFixed(1)}</TableBodyCell>
+                <TableBodyCell class="text-gray-800 dark:text-gray-200 text-xs sm:text-base py-1 sm:py-2 truncate">{formatWeight(weight, $weightUnit)}</TableBodyCell>
                 <TableBodyCell class="text-gray-800 dark:text-gray-200 text-xs sm:text-base py-1 sm:py-2 truncate">{timestamp.toLocaleDateString()}</TableBodyCell>
                 <TableBodyCell class="py-1 sm:py-2 min-w-[80px] max-w-[100px]">
                   <Button
@@ -223,7 +224,7 @@
                     class="flex items-center gap-1 sm:gap-2 hover:bg-red-600 transition-colors text-xs w-full justify-center"
                     onclick={() => deleteWeight(id)}
                     disabled={weightLoading}
-                    aria-label={`Delete weight record of ${weight} kg from ${timestamp.toLocaleDateString()}`}
+                    aria-label={`Delete weight record of ${formatWeight(weight, $weightUnit)} ${$weightUnit} from ${timestamp.toLocaleDateString()}`}
                   >
                     <TrashBinOutline class="w-3 h-3 sm:w-4 sm:h-4" />
                     <span class="hidden sm:inline">Delete</span>

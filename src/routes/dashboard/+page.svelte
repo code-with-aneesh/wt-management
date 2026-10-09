@@ -18,6 +18,7 @@
   } from "firebase/firestore";
   import { goto } from "$app/navigation";
   import { user } from "$lib/stores/authStore";
+  import { formatWeight, kgToDisplayWeight, weightUnit } from "$lib/stores/weightUnit";
 
   // Data variables
   let weights: { weight: number; timestamp: Date }[] = [];
@@ -81,8 +82,8 @@
               labels: weights.map((item) => item.timestamp.toLocaleDateString()),
               datasets: [
                 {
-                  label: "Weight (kg)",
-                  data: weights.map((item) => item.weight),
+                  label: `Weight (${$weightUnit})`,
+                  data: weights.map((item) => kgToDisplayWeight(item.weight, $weightUnit)),
                   borderColor: "#3b82f6",
                   backgroundColor: "#93c5fd",
                   borderWidth: 2,
@@ -221,9 +222,13 @@
           goto("/");
         }
       });
+      const unsubWeightUnit = weightUnit.subscribe(() => {
+        if (currentUser) fetchWeights();
+      });
 
       cleanup = () => {
         unsubUser();
+        unsubWeightUnit();
         if (weightChartInstance) weightChartInstance.destroy();
         if (gymChartInstance) gymChartInstance.destroy();
       };
@@ -297,7 +302,7 @@
           Current Weight
         </h3>
         <p class="text-2xl font-bold text-gray-900 dark:text-white">
-          {currentWeight ? `${currentWeight} kg` : "N/A"}
+          {currentWeight ? `${formatWeight(currentWeight, $weightUnit)} ${$weightUnit}` : "N/A"}
         </p>
         {#if weights.length > 1}
           <p class="text-sm mt-1 dark:text-gray-400">
@@ -305,10 +310,13 @@
             weights[weights.length - 2].weight
               ? "↑"
               : "↓"}
-            {Math.abs(
-              weights[weights.length - 1].weight -
-                weights[weights.length - 2].weight
-            ).toFixed(1)} kg from last
+            {formatWeight(
+              Math.abs(
+                weights[weights.length - 1].weight -
+                  weights[weights.length - 2].weight
+              ),
+              $weightUnit
+            )} {$weightUnit} from last
           </p>
         {/if}
       </div>
