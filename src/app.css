@@ -18,3 +18,16 @@
 }
 
 @source "../node_modules/flowbite-svelte/dist";
+
+html,
+body {
+  min-height: 100%;
+  margin: 0;
+  background-color: #f3f4f6;
+  overscroll-behavior-y: none;
+}
+
+html.dark,
+html.dark body {
+  background-color: #111827;
+}

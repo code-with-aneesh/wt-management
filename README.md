@@ -48,6 +48,9 @@ git clone https://github.com/code-with-aneesh/wt-management.git
      VITE_STORAGE_BUCKET=your_bucket.appspot.com
      VITE_MESSAGING_SENDER_ID=your_sender_id
      VITE_APP_ID=your_app_id
+     CLOUDINARY_CLOUD_NAME=your_cloudinary_cloud_name
+     CLOUDINARY_API_KEY=your_cloudinary_api_key
+     CLOUDINARY_API_SECRET=your_cloudinary_api_secret
      ```
 4. (Optional) For Vercel deployment, add `vercel.json` and set environment variables in Vercel dashboard.
 5. Run the development server:
@@ -108,9 +111,15 @@ npm run preview
 - `/bmi` – BMI, BMR, and calorie calculator
 - `/gym` – Interactive gym calendar
 - `/input` – Multi-section health data input form
-- `/images` – Encode, save, and browse personal images with timestamps using Firestore text chunks
+- `/images` – Upload, tag, filter, and browse personal images with timestamps using Cloudinary and Firestore metadata
 - `/updateweights` – Weight history management
 - `/about` – App info and team details
+
+### Cloudinary image storage
+
+Images are uploaded through the SvelteKit server endpoint and stored in Cloudinary. Firestore stores the Cloudinary URLs and image metadata, while older Firestore Base64 images remain readable in the gallery for compatibility.
+
+Keep `CLOUDINARY_API_SECRET` server-only: do not prefix it with `VITE_`, commit it, or expose it in browser code. Add the same Cloudinary variables to the deployment environment, such as Vercel Project Settings → Environment Variables.
 
 ## 🤝 Contributing
 

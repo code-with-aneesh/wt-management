@@ -17,7 +17,7 @@
 
   // Firebase imports
   import { db } from '$lib/firebase';
-  import { doc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
+  import { collection, doc, onSnapshot, setDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
   import { getAuth, onAuthStateChanged, type User } from 'firebase/auth';
 
   // --- Stores ---
@@ -100,6 +100,42 @@
     } catch (err) {
       console.error('Error saving:', err);
       errorLoadingTrackedDates.set('Failed to save changes');
+    }
+  }
+
+  async function resetTracker() {
+    if (!calendarDocRef || get(isLoadingTrackedDates)) return;
+
+    const datesToArchive = get(trackedDates);
+    if (Object.keys(datesToArchive).length === 0) {
+      errorLoadingTrackedDates.set('There are no tracked days to reset yet.');
+      return;
+    }
+
+    if (!window.confirm('Reset the active gym tracker? Your old attendance will be archived and kept safe.')) {
+      return;
+    }
+
+    try {
+      const archiveRef = doc(collection(calendarDocRef, 'archives'));
+      const batch = writeBatch(db);
+
+      batch.set(archiveRef, {
+        dates: datesToArchive,
+        archivedAt: serverTimestamp()
+      });
+      batch.set(calendarDocRef, {
+        dates: {},
+        lastUpdated: serverTimestamp(),
+        lastResetAt: serverTimestamp()
+      }, { merge: true });
+
+      await batch.commit();
+      trackedDates.set({});
+      errorLoadingTrackedDates.set(null);
+    } catch (error) {
+      console.error('Error resetting gym tracker:', error);
+      errorLoadingTrackedDates.set('Failed to reset the tracker. Your old data was not changed.');
     }
   }
 
@@ -194,7 +230,7 @@
     const ds = formatDate(date);
     trackedDates.update(curr => {
       const cur = curr[ds];
-      const next = cur === 'red' ? 'green' : cur === 'green' ? undefined : 'red';
+      const next = cur === 'green' ? 'red' : cur === 'red' ? undefined : 'green';
       let updated: Record<string, 'red' | 'green'>;
       if (next) {
         updated = { ...curr, [ds]: next };
@@ -289,6 +325,17 @@
       </div>
     </div>
 
+    <div class="mb-4 flex items-center justify-end gap-2">
+      <button
+        type="button"
+        onclick={resetTracker}
+        disabled={$isLoadingTrackedDates}
+        class="shrink-0 rounded-md border border-amber-300 px-2 py-1 text-[11px] font-medium text-amber-700 transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-amber-700 dark:text-amber-300 dark:hover:bg-amber-900/30"
+      >
+        Reset Tracker
+      </button>
+    </div>
+
     {#key $selectedView}
       <div transition:fly={{ y: 20, duration: 250 }} class="grid gap-1"
         class:grid-cols-7={$selectedView !== 'day'}
@@ -312,7 +359,6 @@
           <button
             onclick={() => isSelectable && toggleDate(dayInfo.date)}
             onkeydown={(e) => e.key === 'Enter' && isSelectable && toggleDate(dayInfo.date)}
-            role="button"
             aria-pressed={!!dayStatus}
             aria-label={`
               ${format(dayInfo.date, 'EEEE, MMMM do, yyyy')}
@@ -378,7 +424,7 @@
                   dayStatus === 'red'
                     ? 'bg-red-500'
                     : 'bg-green-500'
-                }`} />
+                }`}></div>
               </div>
             {/if}
           </button>

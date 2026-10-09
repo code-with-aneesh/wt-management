@@ -11,10 +11,11 @@
     collection,
     getDocs,
     query,
-    orderBy,
     where,
     doc,
     getDoc,
+    setDoc,
+    serverTimestamp,
   } from "firebase/firestore";
   import { goto } from "$app/navigation";
   import { user } from "$lib/stores/authStore";
@@ -31,6 +32,8 @@
   let gymCanvas: HTMLCanvasElement;
   let weightChartInstance: Chart | null = null;
   let gymChartInstance: Chart | null = null;
+  let gymActionMessage = "";
+  let gymActionLoading = false;
 
   // Computed properties for weight
   $: currentWeight = weights.length ? weights[weights.length - 1].weight : null;
@@ -43,6 +46,33 @@
   $: gymAttendancePercentage = Object.keys(gymDates).length > 0
     ? ((totalGymDays / Object.keys(gymDates).length) * 100).toFixed(1)
     : "0.0";
+
+  async function markTodayAsAttended() {
+    if (!currentUser || gymActionLoading) return;
+
+    gymActionLoading = true;
+    gymActionMessage = "";
+    const today = new Date().toISOString().slice(0, 10);
+    const updatedDates = { ...gymDates, [today]: "green" };
+
+    try {
+      await setDoc(
+        doc(db, "calendars", currentUser.uid),
+        {
+          dates: updatedDates,
+          lastUpdated: serverTimestamp()
+        },
+        { merge: true }
+      );
+      gymDates = updatedDates;
+      gymActionMessage = "Gym attendance marked for today.";
+    } catch (error) {
+      console.error("Failed to mark today's gym attendance:", error);
+      gymActionMessage = "Could not mark attendance. Please try again.";
+    } finally {
+      gymActionLoading = false;
+    }
+  }
 
   // Initialize component
   onMount(() => {
@@ -161,53 +191,66 @@
 
       const fetchWeights = async () => {
         if (!currentUser) return;
-        const q = query(
-          collection(db, "weights"),
-          where("userId", "==", currentUser.uid),
-          orderBy("timestamp", "asc")
-        );
-        const snapshot = await getDocs(q);
-        weights = snapshot.docs.map((doc) => ({
-          weight: doc.data().weight,
-          timestamp: doc.data().timestamp.toDate(),
-        }));
+        const uid = currentUser.uid;
+
+        try {
+          const q = query(
+            collection(db, "weights"),
+            where("userId", "==", uid)
+          );
+          const snapshot = await getDocs(q);
+          weights = snapshot.docs.map((weightDoc) => ({
+            weight: Number(weightDoc.data().weight),
+            timestamp: timestampToDate(weightDoc.data().timestamp),
+          })).sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+        } catch (error) {
+          console.error("Failed to load weight records:", error);
+          weights = [];
+        }
         drawChart("weight");
       };
 
       const fetchHeight = async () => {
         if (!currentUser) return;
+        const uid = currentUser.uid;
+
         try {
           const q = query(
             collection(db, "heights"),
-            where("userId", "==", currentUser.uid),
-            orderBy("timestamp", "desc"),
-            limit(1)
+            where("userId", "==", uid)
           );
           const snapshot = await getDocs(q);
           if (!snapshot.empty) {
-            userHeight = snapshot.docs[0].data().height;
+            const latestHeight = snapshot.docs
+              .map((heightDoc) => heightDoc.data())
+              .sort(
+                (a, b) =>
+                  timestampToDate(b.timestamp).getTime() -
+                  timestampToDate(a.timestamp).getTime()
+              )[0];
+            userHeight = Number(latestHeight.height) || null;
           }
-        } catch {
-          const snapshot = await getDocs(
-            query(collection(db, "heights"), where("userId", "==", currentUser.uid))
-          );
-          if (!snapshot.empty) {
-            const docs = snapshot.docs.map(d => d.data());
-            docs.sort((a, b) => b.timestamp.toMillis() - a.timestamp.toMillis());
-            userHeight = docs[0].height;
-          }
+        } catch (error) {
+          console.error("Failed to load height records:", error);
+          userHeight = null;
         }
       };
 
       const fetchGymDates = async () => {
         if (!currentUser) return;
-        const docRef = doc(db, "calendars", currentUser.uid);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          gymDates = docSnap.data().dates || {};
+        try {
+          const docRef = doc(db, "calendars", currentUser.uid);
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists()) {
+            gymDates = docSnap.data().dates || {};
+          } else {
+            gymDates = {};
+          }
           drawChart("gym");
-        } else {
+        } catch (error) {
+          console.error("Failed to load gym attendance:", error);
           gymDates = {};
+          drawChart("gym");
         }
       };
 
@@ -236,6 +279,19 @@
 
     return cleanup;
   });
+
+  function timestampToDate(value: unknown): Date {
+    if (value && typeof value === "object" && "toDate" in value) {
+      const timestamp = value as { toDate?: () => Date };
+      if (typeof timestamp.toDate === "function") return timestamp.toDate();
+    }
+    if (value instanceof Date) return value;
+    if (typeof value === "number" || typeof value === "string") {
+      const parsed = new Date(value);
+      if (!Number.isNaN(parsed.getTime())) return parsed;
+    }
+    return new Date(0);
+  }
 
   function getBMICategory(bmi: number): string {
     if (!bmi) return "N/A";
@@ -292,6 +348,46 @@
         </p>
       </div>
     </header>
+
+    <div class="mb-8 rounded-xl border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800 sm:p-5">
+      <div class="mb-4">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Quick Actions</h2>
+        <p class="text-sm text-gray-500 dark:text-gray-400">Update your progress in one tap.</p>
+      </div>
+      <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <a
+          href="/input"
+          class="flex items-center gap-3 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-left transition hover:border-blue-300 hover:bg-blue-100 dark:border-blue-900/50 dark:bg-blue-900/20 dark:hover:bg-blue-900/40"
+        >
+          <span class="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600 text-xl text-white">+</span>
+          <span>
+            <span class="block font-semibold text-blue-900 dark:text-blue-100">Add Weight</span>
+            <span class="block text-xs text-blue-700/80 dark:text-blue-300/80">Record a new measurement</span>
+          </span>
+        </a>
+        <button
+          type="button"
+          onclick={markTodayAsAttended}
+          disabled={gymActionLoading}
+          class="flex items-center gap-3 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-left transition hover:border-emerald-300 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-emerald-900/50 dark:bg-emerald-900/20 dark:hover:bg-emerald-900/40"
+        >
+          <span class="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-600 text-white">
+            {#if gymActionLoading}
+              <span class="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"></span>
+            {:else}
+              ✓
+            {/if}
+          </span>
+          <span>
+            <span class="block font-semibold text-emerald-900 dark:text-emerald-100">Mark Gym Attendance</span>
+            <span class="block text-xs text-emerald-700/80 dark:text-emerald-300/80">Mark today as attended</span>
+          </span>
+        </button>
+      </div>
+      {#if gymActionMessage}
+        <p class="mt-3 text-sm text-gray-600 dark:text-gray-300" role="status">{gymActionMessage}</p>
+      {/if}
+    </div>
 
     <!-- Stats Overview -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8" transition:fade>

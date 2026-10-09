@@ -3,12 +3,13 @@
   import { goto } from "$app/navigation";
   import { browser } from "$app/environment";
   import { user, isLoadingAuth } from "$lib/stores/authStore";
-  import { db } from "$lib/firebase";
-  import { collection, doc, getDocs, query, Timestamp, where, writeBatch } from "firebase/firestore";
+  import { auth, db } from "$lib/firebase";
+  import { collection, deleteDoc, doc, getDocs, query, setDoc, Timestamp, where, writeBatch } from "firebase/firestore";
 
   interface SavedImage {
     id: string;
     thumbnailDataUrl: string;
+    publicId?: string;
     dataUrl?: string;
     contentType: string;
     size: number;
@@ -38,6 +39,9 @@
   let fileInput: HTMLInputElement;
   let previewUrls: string[] = [];
 
+  const maxUploadDimension = 1600;
+  const uploadQuality = 0.78;
+
   const unsubscribe = user.subscribe((value) => {
     currentUser = value ? { uid: value.uid } : null;
   });
@@ -64,12 +68,6 @@
     loadImages(currentUser.uid);
   }
 
-  // Keep each encoded chunk comfortably below Firestore's 1 MiB document limit.
-  const chunkSize = 700_000;
-  const maxImageDimension = 1600;
-  const thumbnailDimension = 480;
-  const webpQuality = 0.78;
-
   async function loadImages(uid: string) {
     isLoading = true;
     errorMessage = "";
@@ -79,25 +77,29 @@
         query(collection(db, "images"), where("userId", "==", uid))
       );
 
-      images = (await Promise.all(snapshot.docs.map(async (imageDoc) => {
+      const loadedImages = await Promise.all(snapshot.docs.map(async (imageDoc) => {
           const data = imageDoc.data();
-          const thumbnailChunks = await readChunks(imageDoc.id, "thumbnailChunks");
-          const fallbackChunks = thumbnailChunks.length
-            ? thumbnailChunks
-            : await readChunks(imageDoc.id, "chunks");
-          const timestamp = data.uploadedAt instanceof Timestamp
-            ? data.uploadedAt.toDate()
-            : new Date(data.uploadedAt || Date.now());
+          if (typeof data.imageUrl === "string" && typeof data.thumbnailUrl === "string") {
+            const timestamp = data.uploadedAt instanceof Timestamp
+              ? data.uploadedAt.toDate()
+              : new Date(data.uploadedAt || Date.now());
+            return {
+              id: imageDoc.id,
+              publicId: data.publicId as string | undefined,
+              thumbnailDataUrl: data.thumbnailUrl,
+              dataUrl: data.imageUrl,
+              contentType: data.contentType as string,
+              size: Number(data.size || data.storedSize || 0),
+              tag: data.tag === "Gym" || data.tag === "Food" ? data.tag : null,
+              uploadedAt: timestamp
+            };
+          }
 
-          return {
-            id: imageDoc.id,
-            thumbnailDataUrl: `data:${data.thumbnailContentType || data.contentType};base64,${fallbackChunks}`,
-            contentType: data.contentType as string,
-            size: Number(data.size || 0),
-            tag: data.tag === "Gym" || data.tag === "Food" ? data.tag : null,
-            uploadedAt: timestamp
-          };
-        })))
+          await deleteLegacyImageData(imageDoc.id);
+          return null;
+        }));
+
+      images = loadedImages.filter((image): image is SavedImage => image !== null)
         .sort((a, b) => b.uploadedAt.getTime() - a.uploadedAt.getTime());
     } catch (error) {
       console.error("Failed to load saved images:", error);
@@ -117,16 +119,31 @@
       .join("");
   }
 
+  async function deleteLegacyImageData(imageId: string) {
+    const [chunksSnapshot, thumbnailChunksSnapshot] = await Promise.all([
+      getDocs(collection(db, "images", imageId, "chunks")),
+      getDocs(collection(db, "images", imageId, "thumbnailChunks"))
+    ]);
+    const operations = [
+      ...chunksSnapshot.docs.map((chunkDocument) => chunkDocument.ref),
+      ...thumbnailChunksSnapshot.docs.map((chunkDocument) => chunkDocument.ref),
+      doc(db, "images", imageId)
+    ];
+
+    for (let index = 0; index < operations.length; index += 450) {
+      const batch = writeBatch(db);
+      operations.slice(index, index + 450).forEach((reference) => batch.delete(reference));
+      await batch.commit();
+    }
+  }
+
   async function openPreview(image: SavedImage) {
     if (previewObjectUrl) {
       URL.revokeObjectURL(previewObjectUrl);
       previewObjectUrl = "";
     }
-    selectedImage = { ...image, dataUrl: image.thumbnailDataUrl };
-    if (image.dataUrl) {
-      selectedImage = image;
-      return;
-    }
+    selectedImage = { ...image, dataUrl: image.dataUrl || image.thumbnailDataUrl };
+    if (image.dataUrl?.startsWith("https://")) return;
 
     isLoadingPreview = true;
     try {
@@ -198,47 +215,40 @@
     try {
       for (let fileIndex = 0; fileIndex < imageFiles.length; fileIndex += 1) {
         const file = imageFiles[fileIndex];
-        uploadStatus = `Optimizing image ${fileIndex + 1} of ${imageFiles.length}...`;
-        const compressed = await compressImage(file);
-        const thumbnail = await compressImage(file, thumbnailDimension);
-        const dataUrl = compressed.dataUrl;
-        const encodedImage = dataUrl.split(",", 2)[1];
-        const encodedThumbnail = thumbnail.dataUrl.split(",", 2)[1];
-        const imageDocument = doc(collection(db, "images"));
-        const batch = writeBatch(db);
-
-        batch.set(imageDocument, {
-          userId: currentUser.uid,
-          contentType: compressed.contentType,
-          thumbnailContentType: thumbnail.contentType,
-          size: file.size,
-          storedSize: compressed.size,
-          thumbnailSize: thumbnail.size,
-          tag: selectedTag,
-          uploadedAt: Timestamp.now(),
-          chunkCount: Math.ceil(encodedImage.length / chunkSize),
-          thumbnailChunkCount: Math.ceil(encodedThumbnail.length / chunkSize)
+        uploadStatus = `Preparing image ${fileIndex + 1} of ${imageFiles.length}...`;
+        const compressedFile = await compressForUpload(file);
+        const uploadData = new FormData();
+        uploadData.set("file", compressedFile, `image-${Date.now()}.webp`);
+        const idToken = await auth.currentUser?.getIdToken();
+        if (!idToken) throw new Error("Your sign-in session has expired.");
+        const uploadResponse = await fetch("/api/images", {
+          method: "POST",
+          headers: { authorization: `Bearer ${idToken}` },
+          body: uploadData
         });
-
-        const chunkCollection = collection(db, "images", imageDocument.id, "chunks");
-        for (let index = 0; index < encodedImage.length; index += chunkSize) {
-          const chunkDocument = doc(chunkCollection);
-          batch.set(chunkDocument, {
-            index: Math.floor(index / chunkSize),
-            data: encodedImage.slice(index, index + chunkSize)
-          });
+        if (!uploadResponse.ok) {
+          const responseBody = await uploadResponse.json().catch(() => null);
+          throw new Error(responseBody?.message || "Cloudinary upload failed.");
         }
-        const thumbnailCollection = collection(db, "images", imageDocument.id, "thumbnailChunks");
-        for (let index = 0; index < encodedThumbnail.length; index += chunkSize) {
-          const thumbnailDocument = doc(thumbnailCollection);
-          batch.set(thumbnailDocument, {
-            index: Math.floor(index / chunkSize),
-            data: encodedThumbnail.slice(index, index + chunkSize)
-          });
-        }
-
-        uploadStatus = `Saving image ${fileIndex + 1} of ${imageFiles.length}...`;
-        await batch.commit();
+        const uploaded = await uploadResponse.json() as {
+          publicId: string;
+          imageUrl: string;
+          thumbnailUrl: string;
+          contentType: string;
+          storedSize: number;
+        };
+        const imageDocument = doc(collection(db, "images"));
+        await setDoc(imageDocument, {
+          userId: currentUser.uid,
+          publicId: uploaded.publicId,
+          imageUrl: uploaded.imageUrl,
+          thumbnailUrl: uploaded.thumbnailUrl,
+          contentType: uploaded.contentType,
+          size: file.size,
+          storedSize: uploaded.storedSize,
+          tag: selectedTag,
+          uploadedAt: Timestamp.now()
+        });
       }
 
       await loadImages(currentUser.uid);
@@ -256,6 +266,39 @@
     }
   }
 
+  async function compressForUpload(file: File) {
+    const sourceUrl = URL.createObjectURL(file);
+
+    try {
+      const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const element = new Image();
+        element.onload = () => resolve(element);
+        element.onerror = () => reject(new Error("Unable to read the selected image."));
+        element.src = sourceUrl;
+      });
+      const scale = Math.min(
+        1,
+        maxUploadDimension / Math.max(image.naturalWidth, image.naturalHeight)
+      );
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+      canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+      const context = canvas.getContext("2d");
+      if (!context) throw new Error("Your browser could not prepare this image.");
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+      return await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob(
+          (blob) => blob ? resolve(blob) : reject(new Error("Unable to compress the image.")),
+          "image/webp",
+          uploadQuality
+        );
+      });
+    } finally {
+      URL.revokeObjectURL(sourceUrl);
+    }
+  }
+
   async function deleteImage(image: SavedImage) {
     if (!currentUser || deletingImageId) return;
     if (!window.confirm("Delete this image? This cannot be undone.")) return;
@@ -265,27 +308,35 @@
     successMessage = "";
 
     try {
-      const [chunksSnapshot, thumbnailChunksSnapshot] = await Promise.all([
-        getDocs(collection(db, "images", image.id, "chunks")),
-        getDocs(collection(db, "images", image.id, "thumbnailChunks"))
-      ]);
-      const operations = [
-        ...chunksSnapshot.docs.map((chunkDocument) => ({
-          path: chunkDocument.ref,
-          type: "chunk" as const
-        })),
-        ...thumbnailChunksSnapshot.docs.map((chunkDocument) => ({
-          path: chunkDocument.ref,
-          type: "thumbnail" as const
-        })),
-        { path: doc(db, "images", image.id), type: "image" as const }
-      ];
-
-      for (let index = 0; index < operations.length; index += 450) {
-        const batch = writeBatch(db);
-        operations.slice(index, index + 450).forEach((operation) => batch.delete(operation.path));
-        await batch.commit();
+      if (image.publicId) {
+        const idToken = await auth.currentUser?.getIdToken();
+        if (!idToken) throw new Error("Your sign-in session has expired.");
+        const deleteResponse = await fetch("/api/images", {
+          method: "DELETE",
+          headers: {
+            authorization: `Bearer ${idToken}`,
+            "content-type": "application/json"
+          },
+          body: JSON.stringify({ publicId: image.publicId })
+        });
+        if (!deleteResponse.ok) throw new Error("Cloudinary deletion failed.");
+      } else {
+        const [chunksSnapshot, thumbnailChunksSnapshot] = await Promise.all([
+          getDocs(collection(db, "images", image.id, "chunks")),
+          getDocs(collection(db, "images", image.id, "thumbnailChunks"))
+        ]);
+        const operations = [
+          ...chunksSnapshot.docs.map((chunkDocument) => chunkDocument.ref),
+          ...thumbnailChunksSnapshot.docs.map((chunkDocument) => chunkDocument.ref),
+          doc(db, "images", image.id)
+        ];
+        for (let index = 0; index < operations.length; index += 450) {
+          const batch = writeBatch(db);
+          operations.slice(index, index + 450).forEach((path) => batch.delete(path));
+          await batch.commit();
+        }
       }
+      if (image.publicId) await deleteDoc(doc(db, "images", image.id));
 
       images = images.filter((savedImage) => savedImage.id !== image.id);
       if (selectedImage?.id === image.id) {
@@ -298,58 +349,6 @@
     } finally {
       deletingImageId = "";
     }
-  }
-
-  async function compressImage(file: File, maximumDimension = maxImageDimension): Promise<{ dataUrl: string; contentType: string; size: number }> {
-    const sourceUrl = URL.createObjectURL(file);
-
-    try {
-      const image = await new Promise<HTMLImageElement>((resolve, reject) => {
-        const element = new Image();
-        element.onload = () => resolve(element);
-        element.onerror = () => reject(new Error(`Unable to read ${file.name}.`));
-        element.src = sourceUrl;
-      });
-
-      const scale = Math.min(1, maximumDimension / Math.max(image.naturalWidth, image.naturalHeight));
-      const canvas = document.createElement("canvas");
-      canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
-      canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
-      const context = canvas.getContext("2d");
-
-      if (!context) {
-        throw new Error("Your browser could not prepare this image.");
-      }
-
-      context.drawImage(image, 0, 0, canvas.width, canvas.height);
-      const blob = await new Promise<Blob>((resolve, reject) => {
-        canvas.toBlob(
-          (result) => result ? resolve(result) : reject(new Error(`Unable to compress ${file.name}.`)),
-          "image/webp",
-          webpQuality
-        );
-      });
-      const dataUrl = await blobToDataUrl(blob);
-
-      return {
-        dataUrl,
-        contentType: "image/webp",
-        size: blob.size
-      };
-    } finally {
-      URL.revokeObjectURL(sourceUrl);
-    }
-  }
-
-  function blobToDataUrl(blob: Blob): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => typeof reader.result === "string"
-        ? resolve(reader.result)
-        : reject(new Error("The compressed image could not be read."));
-      reader.onerror = () => reject(reader.error ?? new Error("The compressed image could not be read."));
-      reader.readAsDataURL(blob);
-    });
   }
 
   function formatDate(date: Date) {

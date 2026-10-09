@@ -37,6 +37,7 @@
 		"chartjs-plugin-annotation": "^3.1.0",
 		"chartjs-plugin-trendline": "^2.1.6",
 		"chartjs-plugin-zoom": "^2.2.0",
+		"cloudinary": "^2.11.0",
 		"date-fns": "^4.1.0",
 		"emoji-toolkit": "^9.0.1",
 		"firebase": "^11.3.1",
