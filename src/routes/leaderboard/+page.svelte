@@ -309,7 +309,12 @@
                   {getRankIcon(index)}
                 </td>
                 <td class="px-6 py-4">
-                  {user.username}
+                  <a
+                    href={`/profile/${user.userId}`}
+                    class="font-medium text-blue-600 hover:underline dark:text-blue-400"
+                  >
+                    {user.username}
+                  </a>
                   {#if user.userId === currentUser?.uid}
                     <span class="ml-2 text-xs text-blue-500 dark:text-blue-300"
                       >(You)</span
