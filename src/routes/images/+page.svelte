@@ -77,7 +77,7 @@
         query(collection(db, "images"), where("userId", "==", uid))
       );
 
-      const loadedImages = await Promise.all(snapshot.docs.map(async (imageDoc) => {
+      const loadedImages: Array<SavedImage | null> = await Promise.all(snapshot.docs.map(async (imageDoc): Promise<SavedImage | null> => {
           const data = imageDoc.data();
           if (typeof data.imageUrl === "string" && typeof data.thumbnailUrl === "string") {
             const timestamp = data.uploadedAt instanceof Timestamp

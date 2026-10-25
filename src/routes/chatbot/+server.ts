@@ -3,13 +3,16 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { env } from '$env/dynamic/private';
 
 export async function POST({ request }) {
+  const { prompt } = await request.json();
+
+  if (!prompt || typeof prompt !== 'string') {
+    throw error(400, 'Prompt is required and must be a string');
+  }
+
   try {
-    const { prompt } = await request.json();
-
-    if (!prompt || typeof prompt !== 'string') {
-      throw error(400, 'Prompt is required and must be a string');
+    if (!env.VITE_GEMINI_API_KEY) {
+      throw new Error('Gemini API key is not configured');
     }
-
     const genAI = new GoogleGenerativeAI(env.VITE_GEMINI_API_KEY);
     const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 

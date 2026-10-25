@@ -17,7 +17,7 @@
 
   // Firebase imports
   import { db } from '$lib/firebase';
-  import { collection, doc, onSnapshot, setDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
+  import { collection, doc, onSnapshot, runTransaction, serverTimestamp, writeBatch } from 'firebase/firestore';
   import { getAuth, onAuthStateChanged, type User } from 'firebase/auth';
 
   // --- Stores ---
@@ -30,6 +30,8 @@
 
   // Firestore document ref will be set per user
   let calendarDocRef: ReturnType<typeof doc> | null = null;
+  let unsubscribeSnapshot: (() => void) | null = null;
+  let saveQueue = Promise.resolve();
 
   // --- Load data based on authenticated user ---
   onMount(() => {
@@ -37,13 +39,12 @@
 
     const auth = getAuth();
     const unsubscribeAuth = onAuthStateChanged(auth, (user: User | null) => {
-      if (calendarDocRef) {
-        // noop: snapshot unsubscribes are handled in its cleanup
-      }
+      unsubscribeSnapshot?.();
+      unsubscribeSnapshot = null;
 
       if (user) {
         calendarDocRef = doc(db, 'calendars', user.uid);
-        const unsubscribeSnapshot = onSnapshot(
+        unsubscribeSnapshot = onSnapshot(
           calendarDocRef,
           (docSnap) => {
             if (docSnap.exists()) {
@@ -66,9 +67,6 @@
             isLoadingTrackedDates.set(false);
           }
         );
-        return () => {
-          unsubscribeSnapshot();
-        };
       } else {
         trackedDates.set({});
         isLoadingTrackedDates.set(false);
@@ -77,31 +75,10 @@
     });
 
     return () => {
+      unsubscribeSnapshot?.();
       unsubscribeAuth();
     };
   });
-
-  // --- Save to Firestore ---
-  async function saveTrackedDatesToFirestore(datesToSave: Record<string, 'red' | 'green'>) {
-    if (!calendarDocRef) {
-      console.warn('No user calendar ref, aborting save');
-      return;
-    }
-    if (get(isLoadingTrackedDates)) {
-      console.warn('Still loading, aborting save');
-      return;
-    }
-    try {
-      await setDoc(calendarDocRef, {
-        dates: datesToSave,
-        lastUpdated: serverTimestamp()
-      });
-      console.log('Saved');
-    } catch (err) {
-      console.error('Error saving:', err);
-      errorLoadingTrackedDates.set('Failed to save changes');
-    }
-  }
 
   async function resetTracker() {
     if (!calendarDocRef || get(isLoadingTrackedDates)) return;
@@ -228,19 +205,27 @@
       return;
     }
     const ds = formatDate(date);
-    trackedDates.update(curr => {
-      const cur = curr[ds];
-      const next = cur === 'green' ? 'red' : cur === 'red' ? undefined : 'green';
-      let updated: Record<string, 'red' | 'green'>;
-      if (next) {
-        updated = { ...curr, [ds]: next };
-      } else {
-        updated = Object.fromEntries(
-          Object.entries(curr).filter(([k]) => k !== ds)
-        ) as Record<string, 'red' | 'green'>;
-      }
-      saveTrackedDatesToFirestore(updated);
-      return updated;
+    saveQueue = saveQueue.then(async () => {
+      if (!calendarDocRef || get(isLoadingTrackedDates)) return;
+
+      let updated: Record<string, 'red' | 'green'> = {};
+      await runTransaction(db, async (transaction) => {
+        const snapshot = await transaction.get(calendarDocRef!);
+        const current = (snapshot.data()?.dates || {}) as Record<string, 'red' | 'green'>;
+        const cur = current[ds];
+        const next = cur === 'green' ? 'red' : cur === 'red' ? undefined : 'green';
+        updated = next
+          ? { ...current, [ds]: next }
+          : Object.fromEntries(Object.entries(current).filter(([key]) => key !== ds)) as Record<string, 'red' | 'green'>;
+        transaction.set(calendarDocRef!, {
+          dates: updated,
+          lastUpdated: serverTimestamp()
+        }, { merge: true });
+      });
+      trackedDates.set(updated);
+    }).catch((error) => {
+      console.error('Error saving calendar change:', error);
+      errorLoadingTrackedDates.set('Failed to save changes');
     });
   }
 </script>

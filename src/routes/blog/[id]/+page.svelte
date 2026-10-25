@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
   import { db } from "$lib/firebase";
-  import { doc, getDoc, collection, query, orderBy, getDocs, addDoc, updateDoc, increment, Timestamp } from "firebase/firestore";
+  import { doc, getDoc, collection, query, orderBy, getDocs, addDoc, updateDoc, increment, Timestamp, type FieldValue } from "firebase/firestore";
   import { goto } from "$app/navigation";
   import { user } from "$lib/stores/authStore";
   import { marked } from "marked";
@@ -193,7 +193,7 @@
     if (!comment) return;
 
     const userVote = comment.userVotes[currentUser.uid];
-    const updates: { [key: string]: string | number | null } = { [`userVotes.${currentUser.uid}`]: voteType };
+    const updates: { [key: string]: string | number | null | FieldValue } = { [`userVotes.${currentUser.uid}`]: voteType };
 
     if (userVote === voteType) {
       updates[`userVotes.${currentUser.uid}`] = null;

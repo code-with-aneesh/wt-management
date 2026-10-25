@@ -20,7 +20,7 @@
     { title: "Cross-Device Sync", desc: "Seamlessly access your health data across all your devices in real-time with zero friction." },
     { title: "Smart Analytics", desc: "Comprehensive dashboards with interactive charts to visualize your progress over time." },
     { title: "Community Forum", desc: "Connect with like-minded individuals, share progress, and stay motivated together." },
-    { title: "AI Chatbot", desc: "Get instant answers to your health and fitness questions from our intelligent FitBot assistant." },
+    // { title: "AI Chatbot", desc: "Get instant answers to your health and fitness questions from our intelligent FitBot assistant." },
   ];
 
   const testimonials = [

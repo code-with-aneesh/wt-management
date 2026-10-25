@@ -62,9 +62,14 @@
             query(collection(db, "weights"), where("userId", "==", u.uid))
           );
           if (!weightSnapshot.empty) {
-            const docs = weightSnapshot.docs.map(d => ({ ...d.data(), id: d.id }));
-            docs.sort((a, b) => b.timestamp.toMillis() - a.timestamp.toMillis());
-            lastWeight = docs[0].weight;
+            const docs = weightSnapshot.docs
+              .map((d) => d.data())
+              .sort(
+                (a, b) =>
+                  timestampToDate(b.timestamp).getTime() -
+                  timestampToDate(a.timestamp).getTime()
+              );
+            lastWeight = Number(docs[0].weight);
           }
         }
 
@@ -84,9 +89,14 @@
             query(collection(db, "heights"), where("userId", "==", u.uid))
           );
           if (!heightSnapshot.empty) {
-            const docs = heightSnapshot.docs.map(d => ({ ...d.data(), id: d.id }));
-            docs.sort((a, b) => b.timestamp.toMillis() - a.timestamp.toMillis());
-            lastHeight = docs[0].height;
+            const docs = heightSnapshot.docs
+              .map((d) => d.data())
+              .sort(
+                (a, b) =>
+                  timestampToDate(b.timestamp).getTime() -
+                  timestampToDate(a.timestamp).getTime()
+              );
+            lastHeight = Number(docs[0].height);
           }
         }
 
@@ -112,6 +122,15 @@
         loading = false;
       }
     });
+
+    function timestampToDate(value: unknown): Date {
+      if (value && typeof value === "object" && "toDate" in value) {
+        const timestamp = value as { toDate?: () => Date };
+        if (typeof timestamp.toDate === "function") return timestamp.toDate();
+      }
+      if (value instanceof Date) return value;
+      return new Date(0);
+    }
     onDestroy(() => unsub());
   });
 

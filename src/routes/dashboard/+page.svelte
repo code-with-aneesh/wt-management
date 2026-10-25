@@ -14,7 +14,7 @@
     where,
     doc,
     getDoc,
-    setDoc,
+    runTransaction,
     serverTimestamp,
   } from "firebase/firestore";
   import { goto } from "$app/navigation";
@@ -26,6 +26,19 @@
   let gymDates: { [key: string]: string } = {};
   let currentUser: { uid: string } | null = null;
   let userHeight: number | null = null;
+
+  // Weight chart time range
+  type WeightRange = "1w" | "1m" | "3m" | "6m" | "1y" | "all";
+  const weightRanges: { key: WeightRange; label: string; days: number | null }[] = [
+    { key: "1w", label: "1W", days: 7 },
+    { key: "1m", label: "1M", days: 30 },
+    { key: "3m", label: "3M", days: 90 },
+    { key: "6m", label: "6M", days: 182 },
+    { key: "1y", label: "1Y", days: 365 },
+    { key: "all", label: "All", days: null },
+  ];
+  let weightRange: WeightRange = "all";
+  let drawWeightChart: (() => void) | null = null;
 
   // Chart references
   let weightCanvas: HTMLCanvasElement;
@@ -39,6 +52,7 @@
   $: currentWeight = weights.length ? weights[weights.length - 1].weight : null;
   $: currentBMI = currentWeight && userHeight ? (currentWeight / Math.pow(userHeight / 100, 2)).toFixed(2) : null;
   $: bmiCategory = getBMICategory(Number(currentBMI));
+  $: filteredWeights = getFilteredWeights(weights, weightRange);
 
   // Computed properties for gym attendance
   $: totalGymDays = Object.values(gymDates).filter(status => status === "green").length;
@@ -52,18 +66,19 @@
 
     gymActionLoading = true;
     gymActionMessage = "";
-    const today = new Date().toISOString().slice(0, 10);
-    const updatedDates = { ...gymDates, [today]: "green" };
-
+    const today = formatLocalDate(new Date());
     try {
-      await setDoc(
-        doc(db, "calendars", currentUser.uid),
-        {
+      const calendarRef = doc(db, "calendars", currentUser.uid);
+      let updatedDates: { [key: string]: string } = {};
+      await runTransaction(db, async (transaction) => {
+        const snapshot = await transaction.get(calendarRef);
+        const currentDates = (snapshot.data()?.dates || {}) as { [key: string]: string };
+        updatedDates = { ...currentDates, [today]: "green" };
+        transaction.set(calendarRef, {
           dates: updatedDates,
           lastUpdated: serverTimestamp()
-        },
-        { merge: true }
-      );
+        }, { merge: true });
+      });
       gymDates = updatedDates;
       gymActionMessage = "Gym attendance marked for today.";
     } catch (error) {
@@ -106,14 +121,15 @@
         if (!isWeight && gymChartInstance) gymChartInstance.destroy();
 
         if (isWeight) {
+          const chartWeights = getFilteredWeights(weights, weightRange);
           const chart = new Chart(ctx, {
             type: "line",
             data: {
-              labels: weights.map((item) => item.timestamp.toLocaleDateString()),
+              labels: chartWeights.map((item) => item.timestamp.toLocaleDateString()),
               datasets: [
                 {
                   label: `Weight (${$weightUnit})`,
-                  data: weights.map((item) => kgToDisplayWeight(item.weight, $weightUnit)),
+                  data: chartWeights.map((item) => kgToDisplayWeight(item.weight, $weightUnit)),
                   borderColor: "#3b82f6",
                   backgroundColor: "#93c5fd",
                   borderWidth: 2,
@@ -188,6 +204,8 @@
           gymChartInstance = chart;
         }
       };
+
+      drawWeightChart = () => drawChart("weight");
 
       const fetchWeights = async () => {
         if (!currentUser) return;
@@ -272,6 +290,7 @@
       cleanup = () => {
         unsubUser();
         unsubWeightUnit();
+        drawWeightChart = null;
         if (weightChartInstance) weightChartInstance.destroy();
         if (gymChartInstance) gymChartInstance.destroy();
       };
@@ -291,6 +310,32 @@
       if (!Number.isNaN(parsed.getTime())) return parsed;
     }
     return new Date(0);
+  }
+
+  function formatLocalDate(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }
+
+  function getFilteredWeights(
+    items: { weight: number; timestamp: Date }[],
+    range: WeightRange
+  ) {
+    const config = weightRanges.find((item) => item.key === range);
+    if (!config?.days) return items;
+
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - (config.days - 1));
+    cutoff.setHours(0, 0, 0, 0);
+    return items.filter((item) => item.timestamp >= cutoff);
+  }
+
+  function setWeightRange(range: WeightRange) {
+    if (weightRange === range) return;
+    weightRange = range;
+    drawWeightChart?.();
   }
 
   function getBMICategory(bmi: number): string {
@@ -493,9 +538,25 @@
         class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700"
         transition:fly={{ y: 20 }}
       >
-        <div class="flex justify-between items-center mb-4">
+        <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
           <h2 class="text-lg font-semibold dark:text-white">Weight Progress</h2>
-          <div class="flex gap-1">
+          <div class="order-3 flex w-full gap-1 overflow-x-auto rounded-lg bg-gray-100 p-1 sm:order-2 sm:w-auto dark:bg-gray-700">
+            {#each weightRanges as range (range.key)}
+              <button
+                type="button"
+                onclick={() => setWeightRange(range.key)}
+                aria-pressed={weightRange === range.key}
+                class={`whitespace-nowrap rounded-md px-2.5 py-1 text-xs font-medium transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 dark:focus:ring-offset-gray-800 ${
+                  weightRange === range.key
+                    ? "bg-white text-blue-600 shadow-sm dark:bg-gray-800 dark:text-blue-400"
+                    : "text-gray-600 hover:bg-white/60 dark:text-gray-300 dark:hover:bg-gray-800/30"
+                }`}
+              >
+                {range.label}
+              </button>
+            {/each}
+          </div>
+          <div class="order-2 flex gap-1 sm:order-3">
             <button
               onclick={() => handleZoom("weight", "in")}
               class="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
@@ -561,8 +622,15 @@
             </button>
           </div>
         </div>
-        <div class="h-64">
+        <div class="relative h-64">
           <canvas bind:this={weightCanvas}></canvas>
+          {#if filteredWeights.length === 0}
+            <div class="pointer-events-none absolute inset-0 flex items-center justify-center">
+              <p class="text-sm text-gray-500 dark:text-gray-400">
+                No weight entries in this period.
+              </p>
+            </div>
+          {/if}
         </div>
       </div>
 
