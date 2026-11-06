@@ -9,11 +9,15 @@ import {
 } from "firebase/auth";
 import {
     getFirestore,
+    initializeFirestore,
+    persistentLocalCache,
+    persistentMultipleTabManager,
     doc,
     getDoc,
     setDoc,
     serverTimestamp // For more accurate timestamps
 } from "firebase/firestore";
+import { browser } from "$app/environment";
 
 // Firebase Config from .env
 const firebaseConfig = {
@@ -33,8 +37,25 @@ if (!getApps().length) {
     firebaseApp = getApps()[0];
 }
 
+function createDb() {
+    // IndexedDB isn't available during SSR. On the client, persist the cache
+    // so pending writes survive a reload, crash, or instant tab close.
+    if (!browser) return getFirestore(firebaseApp);
+
+    try {
+        return initializeFirestore(firebaseApp, {
+            localCache: persistentLocalCache({
+                tabManager: persistentMultipleTabManager()
+            })
+        });
+    } catch {
+        // Already initialized (e.g. HMR): reuse the existing instance.
+        return getFirestore(firebaseApp);
+    }
+}
+
 export const auth = getAuth(firebaseApp);
-export const db = getFirestore(firebaseApp);
+export const db = createDb();
 export const googleProvider = new GoogleAuthProvider();
 
 // Sign in with Google and add user to Firestore if not exists

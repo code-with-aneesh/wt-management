@@ -17,7 +17,7 @@
 
   // Firebase imports
   import { db } from '$lib/firebase';
-  import { collection, doc, onSnapshot, runTransaction, serverTimestamp, writeBatch } from 'firebase/firestore';
+  import { collection, doc, onSnapshot, serverTimestamp, setDoc, writeBatch } from 'firebase/firestore';
   import { getAuth, onAuthStateChanged, type User } from 'firebase/auth';
 
   // --- Stores ---
@@ -31,10 +31,67 @@
   // Firestore document ref will be set per user
   let calendarDocRef: ReturnType<typeof doc> | null = null;
   let unsubscribeSnapshot: (() => void) | null = null;
-  let saveQueue = Promise.resolve();
+
+  // Changes are applied locally right away and persisted in batches.
+  let saveTimer: ReturnType<typeof setTimeout> | null = null;
+  let savePromise: Promise<void> = Promise.resolve();
+  let localVersion = 0;
+  let savedVersion = 0;
+  const SAVE_DELAY_MS = 700;
+
+  function enqueuePersist() {
+    savePromise = savePromise.then(persistLatest).catch((error) => {
+      console.error('Error saving calendar changes:', error);
+      errorLoadingTrackedDates.set('Failed to save changes');
+    });
+  }
+
+  function queueSave(delay = SAVE_DELAY_MS) {
+    if (saveTimer) clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      saveTimer = null;
+      enqueuePersist();
+    }, delay);
+  }
+
+  function flushSaveNow() {
+    if (!saveTimer && localVersion === savedVersion) return;
+    if (saveTimer) {
+      clearTimeout(saveTimer);
+      saveTimer = null;
+    }
+    enqueuePersist();
+  }
+
+  async function persistLatest() {
+    if (!calendarDocRef || get(isLoadingTrackedDates)) return;
+
+    const version = localVersion;
+    const datesToSave = get(trackedDates);
+
+    try {
+      await setDoc(calendarDocRef, {
+        dates: datesToSave,
+        lastUpdated: serverTimestamp()
+      }, { mergeFields: ['dates', 'lastUpdated'] });
+      savedVersion = version;
+      errorLoadingTrackedDates.set(null);
+    } finally {
+      // Something changed while the write was in flight: save again.
+      if (version !== localVersion) queueSave(200);
+    }
+  }
 
   // --- Load data based on authenticated user ---
   onMount(() => {
+    const handlePageHide = () => flushSaveNow();
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') flushSaveNow();
+    };
+
+    window.addEventListener('pagehide', handlePageHide);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     isLoadingTrackedDates.set(true);
 
     const auth = getAuth();
@@ -47,6 +104,9 @@
         unsubscribeSnapshot = onSnapshot(
           calendarDocRef,
           (docSnap) => {
+            // Don't let a remote/cached snapshot overwrite unsaved local edits.
+            if (localVersion !== savedVersion) return;
+
             if (docSnap.exists()) {
               const data = docSnap.data();
               if (data && typeof data.dates === 'object' && data.dates !== null) {
@@ -75,6 +135,10 @@
     });
 
     return () => {
+      window.removeEventListener('pagehide', handlePageHide);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      // Don't lose a pending change when navigating away.
+      flushSaveNow();
       unsubscribeSnapshot?.();
       unsubscribeAuth();
     };
@@ -93,6 +157,19 @@
       return;
     }
 
+    // Cancel pending saves and let any in-flight write finish before resetting,
+    // otherwise an older batch could land after the reset.
+    if (saveTimer) {
+      clearTimeout(saveTimer);
+      saveTimer = null;
+    }
+    await savePromise;
+    if (saveTimer) {
+      clearTimeout(saveTimer);
+      saveTimer = null;
+    }
+    localVersion++;
+
     try {
       const archiveRef = doc(collection(calendarDocRef, 'archives'));
       const batch = writeBatch(db);
@@ -105,7 +182,7 @@
         dates: {},
         lastUpdated: serverTimestamp(),
         lastResetAt: serverTimestamp()
-      }, { merge: true });
+      }, { mergeFields: ['dates', 'lastUpdated', 'lastResetAt'] });
 
       await batch.commit();
       trackedDates.set({});
@@ -204,29 +281,23 @@
       console.warn('Cannot mark future dates');
       return;
     }
-    const ds = formatDate(date);
-    saveQueue = saveQueue.then(async () => {
-      if (!calendarDocRef || get(isLoadingTrackedDates)) return;
+    if (!calendarDocRef || get(isLoadingTrackedDates)) return;
 
-      let updated: Record<string, 'red' | 'green'> = {};
-      await runTransaction(db, async (transaction) => {
-        const snapshot = await transaction.get(calendarDocRef!);
-        const current = (snapshot.data()?.dates || {}) as Record<string, 'red' | 'green'>;
-        const cur = current[ds];
-        const next = cur === 'green' ? 'red' : cur === 'red' ? undefined : 'green';
-        updated = next
-          ? { ...current, [ds]: next }
-          : Object.fromEntries(Object.entries(current).filter(([key]) => key !== ds)) as Record<string, 'red' | 'green'>;
-        transaction.set(calendarDocRef!, {
-          dates: updated,
-          lastUpdated: serverTimestamp()
-        }, { merge: true });
-      });
-      trackedDates.set(updated);
-    }).catch((error) => {
-      console.error('Error saving calendar change:', error);
-      errorLoadingTrackedDates.set('Failed to save changes');
+    const ds = formatDate(date);
+
+    trackedDates.update((current) => {
+      const cur = current[ds];
+      const next = cur === 'green' ? 'red' : cur === 'red' ? undefined : 'green';
+      if (!next) {
+        const rest = { ...current };
+        delete rest[ds];
+        return rest;
+      }
+      return { ...current, [ds]: next };
     });
+
+    localVersion++;
+    queueSave();
   }
 </script>
 
