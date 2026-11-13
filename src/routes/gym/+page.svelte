@@ -22,7 +22,7 @@
 
   // --- Stores ---
   const currentDate = writable(new Date());
-  const selectedView = writable<'month' | 'week' | 'day'>('month');
+  const selectedView = writable<'month' | 'week'>('month');
 
   const trackedDates = writable<Record<string, 'red' | 'green'>>({});
   const isLoadingTrackedDates = writable<boolean>(true);
@@ -237,15 +237,13 @@
           return eachDayOfInterval({ start: weekStart, end: endOfWeek($currentDate, { weekStartsOn: 0 }) })
             .map((d: Date) => ({ date: d, isCurrentMonth: true }));
         }
-        case 'day':
-          return [{ date: $currentDate, isCurrentMonth: true }];
       }
     }
   );
 
   const formatDate = (d: Date) => format(d, 'yyyy-MM-dd');
 
-  function getCalendarTitle(date: Date, view: 'month' | 'week' | 'day') {
+  function getCalendarTitle(date: Date, view: 'month' | 'week') {
     if (view === 'month') {
       return format(date, 'MMMM yyyy');
     }
@@ -261,7 +259,6 @@
       }
       return `${fmt(start, 'MMM dd')} - ${fmt(end, 'dd, yyyy')}`;
     }
-    return format(date, 'EEEE, MMM dd, yyyy');
   }
 
   function navigate(direction: 'next' | 'prev') {
@@ -269,8 +266,7 @@
       const amt = direction === 'next' ? 1 : -1;
       const view = get(selectedView);
       if (view === 'month') return addMonths(d, amt);
-      if (view === 'week') return addWeeks(d, amt);
-      return addDays(d, amt);
+      return addWeeks(d, amt);
     });
   }
 
@@ -313,22 +309,22 @@
   {/if}
 
   {#if !$isLoadingTrackedDates}
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-      <div class="p-4 bg-red-100 dark:bg-red-900/50 rounded-lg shadow text-center transition-colors duration-200">
-        <div class="text-xs sm:text-sm font-medium text-red-600 dark:text-red-300 uppercase tracking-wide">Missed Days</div>
-        <div class="text-2xl sm:text-3xl font-bold text-red-800 dark:text-red-200 mt-1">
+    <div class="mb-6 grid grid-cols-3 gap-2 sm:gap-4">
+      <div class="rounded-lg bg-red-100 p-2 text-center shadow transition-colors duration-200 dark:bg-red-900/50 sm:p-4">
+        <div class="text-[10px] font-medium uppercase tracking-wide text-red-600 dark:text-red-300 sm:text-sm">Missed Days</div>
+        <div class="mt-1 text-2xl font-bold text-red-800 dark:text-red-200 sm:text-3xl">
           {$summaryStats.redCount}
         </div>
       </div>
-      <div class="p-4 bg-green-100 dark:bg-green-900/50 rounded-lg shadow text-center transition-colors duration-200">
-        <div class="text-xs sm:text-sm font-medium text-green-600 dark:text-green-300 uppercase tracking-wide">Attended Days</div>
-        <div class="text-2xl sm:text-3xl font-bold text-green-800 dark:text-green-200 mt-1">
+      <div class="rounded-lg bg-green-100 p-2 text-center shadow transition-colors duration-200 dark:bg-green-900/50 sm:p-4">
+        <div class="text-[10px] font-medium uppercase tracking-wide text-green-600 dark:text-green-300 sm:text-sm">Attended Days</div>
+        <div class="mt-1 text-2xl font-bold text-green-800 dark:text-green-200 sm:text-3xl">
           {$summaryStats.greenCount}
         </div>
       </div>
-      <div class="p-4 bg-gray-100 dark:bg-gray-700 rounded-lg shadow text-center transition-colors duration-200">
-        <div class="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Unmarked Days</div>
-        <div class="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-white mt-1">
+      <div class="rounded-lg bg-gray-100 p-2 text-center shadow transition-colors duration-200 dark:bg-gray-700 sm:p-4">
+        <div class="text-[10px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400 sm:text-sm">Unmarked Days</div>
+        <div class="mt-1 text-2xl font-bold text-gray-800 dark:text-white sm:text-3xl">
           {$summaryStats.unmarkedInRange}
         </div>
       </div>
@@ -366,9 +362,9 @@
       </div>
 
       <div class="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1 gap-1">
-        {#each ['month', 'week', 'day'] as view (view)}
+        {#each ['month', 'week'] as view (view)}
           <button
-            onclick={() => selectedView.set(view as 'month' | 'week' | 'day')}
+            onclick={() => selectedView.set(view as 'month' | 'week')}
             class={`px-3 py-1.5 rounded-md transition-all text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 dark:focus:ring-offset-gray-700 ${
               view === $selectedView
                 ? 'bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 shadow-sm'
@@ -393,22 +389,17 @@
     </div>
 
     {#key $selectedView}
-      <div transition:fly={{ y: 20, duration: 250 }} class="grid gap-1"
-        class:grid-cols-7={$selectedView !== 'day'}
-        class:grid-cols-1={$selectedView === 'day'}>
-
-        {#if $selectedView !== 'day'}
-          {#each ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as dayName (dayName)}
-            <div class="text-center text-xs font-semibold text-gray-500 dark:text-gray-400 py-2 uppercase tracking-wider">
-              {dayName}
-            </div>
-          {/each}
-        {/if}
+      <div transition:fly={{ y: 20, duration: 250 }} class="grid grid-cols-7 gap-1">
+        {#each ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as dayName (dayName)}
+          <div class="text-center text-xs font-semibold text-gray-500 dark:text-gray-400 py-2 uppercase tracking-wider">
+            {dayName}
+          </div>
+        {/each}
 
         {#each $calendarDays as dayInfo (formatDate(dayInfo.date))}
           {@const dateStr = formatDate(dayInfo.date)}
           {@const dayStatus = $trackedDates[dateStr]}
-          {@const isSelectable = (($selectedView === 'month' && dayInfo.isCurrentMonth) || $selectedView !== 'month') && !isAfter(dayInfo.date, new Date())}
+          {@const isSelectable = (($selectedView === 'month' && dayInfo.isCurrentMonth) || $selectedView === 'week') && !isAfter(dayInfo.date, new Date())}
           {@const today = isToday(dayInfo.date)}
           {@const isFuture = isAfter(dayInfo.date, new Date())}
 
@@ -428,13 +419,9 @@
             class:cursor-not-allowed={isFuture}
             class:cursor-default={!isSelectable && !isFuture}
             class:opacity-50={(!dayInfo.isCurrentMonth && $selectedView === 'month') || $isLoadingTrackedDates || isFuture}
-            class={`relative rounded-lg transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 focus:ring-blue-500 group
-              ${$selectedView === 'day'
-                ? 'h-32 sm:h-40 flex flex-col items-center justify-center text-lg'
-                : `flex flex-col items-center justify-center text-center
-                  p-0.5 sm:p-1
-                  min-h-[2.25rem] sm:min-h-[3.5rem] md:min-h-[4rem] lg:min-h-[4.5rem] aspect-square`
-              }
+            class={`relative flex flex-col items-center justify-center text-center
+              rounded-lg transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 focus:ring-blue-500 group
+              p-0.5 sm:p-1 min-h-[2.25rem] sm:min-h-[3.5rem] md:min-h-[4rem] lg:min-h-[4.5rem] aspect-square
               ${isSelectable && !$isLoadingTrackedDates
                 ? 'hover:bg-gray-100 dark:hover:bg-gray-700'
                 : isFuture
@@ -459,13 +446,10 @@
               </span>
             {/if}
             <span class={`block font-medium rounded-full transition-colors duration-150 flex items-center justify-center
-                ${$selectedView === 'day'
-                  ? 'text-4xl sm:text-5xl mt-1'
-                  : `text-[10px] w-4 h-4 mt-[1px]
-                    sm:text-xs sm:w-5 sm:h-5 sm:mt-0.5
-                    md:text-sm md:w-6 md:h-6
-                    lg:text-base lg:w-7 lg:h-7`
-                }
+                text-[10px] w-4 h-4 mt-[1px]
+                sm:text-xs sm:w-5 sm:h-5 sm:mt-0.5
+                md:text-sm md:w-6 md:h-6
+                lg:text-base lg:w-7 lg:h-7
                 ${today && !dayStatus && !isFuture ? 'bg-blue-500 !text-white' : ''}
                 ${dayStatus && !isFuture ? 'group-hover:bg-opacity-50 dark:group-hover:bg-opacity-50' : isSelectable && !$isLoadingTrackedDates ? 'group-hover:bg-gray-200 dark:group-hover:bg-gray-600' : ''}
                 ${dayStatus === 'red' && !isFuture ? 'group-hover:bg-red-200 dark:group-hover:bg-red-800/80' : ''}
@@ -473,7 +457,7 @@
               `}>
               {format(dayInfo.date, 'd')}
             </span>
-            {#if dayStatus && $selectedView !== 'day' && !isFuture}
+            {#if dayStatus && !isFuture}
               <div class="absolute left-1/2 -translate-x-1/2
                           bottom-0.5 sm:bottom-1 md:bottom-1.5">
                 <div class={`w-1 h-1 md:w-1.5 md:h-1.5 rounded-full ${
