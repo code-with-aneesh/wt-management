@@ -53,6 +53,8 @@
   $: currentBMI = currentWeight && userHeight ? (currentWeight / Math.pow(userHeight / 100, 2)).toFixed(2) : null;
   $: bmiCategory = getBMICategory(Number(currentBMI));
   $: filteredWeights = getFilteredWeights(weights, weightRange);
+  $: weightPeriodLabel = getWeightPeriodLabel(filteredWeights, weightRange);
+  $: gymPeriodLabel = getGymPeriodLabel(gymDates);
 
   // Computed properties for gym attendance
   $: totalGymDays = Object.values(gymDates).filter(status => status === "green").length;
@@ -105,6 +107,7 @@
         import("chart.js/auto"),
         import("chartjs-plugin-zoom"),
         import("chartjs-plugin-trendline"),
+        import("chartjs-adapter-date-fns"),
       ]);
 
       Chart.register(zoomPlugin, trendlinePlugin);
@@ -125,11 +128,13 @@
           const chart = new Chart(ctx, {
             type: "line",
             data: {
-              labels: chartWeights.map((item) => item.timestamp.toLocaleDateString()),
               datasets: [
                 {
                   label: `Weight (${$weightUnit})`,
-                  data: chartWeights.map((item) => kgToDisplayWeight(item.weight, $weightUnit)),
+                  data: chartWeights.map((item) => ({
+                    x: item.timestamp.getTime(),
+                    y: kgToDisplayWeight(item.weight, $weightUnit),
+                  })),
                   borderColor: "#3b82f6",
                   backgroundColor: "#93c5fd",
                   borderWidth: 2,
@@ -151,6 +156,48 @@
                   pan: {
                     enabled: true,
                     mode: "x",
+                  },
+                },
+                tooltip: {
+                  callbacks: {
+                    title: (items) => {
+                      const timestamp = items[0]?.parsed.x;
+                      return typeof timestamp === "number"
+                        ? formatDateTime(new Date(timestamp))
+                        : "";
+                    },
+                  },
+                },
+              },
+              scales: {
+                x: {
+                  type: "time",
+                  time: {
+                    tooltipFormat: "MMM d, yyyy",
+                    displayFormats: {
+                      hour: "MMM d",
+                      day: "MMM d",
+                      week: "MMM d",
+                      month: "MMM yyyy",
+                    },
+                  },
+                  title: {
+                    display: true,
+                    text: "Date",
+                  },
+                  ticks: {
+                    maxRotation: 0,
+                    autoSkip: true,
+                    maxTicksLimit: 7,
+                  },
+                  grid: {
+                    display: false,
+                  },
+                },
+                y: {
+                  title: {
+                    display: true,
+                    text: `Weight (${$weightUnit})`,
                   },
                 },
               },
@@ -330,6 +377,43 @@
     cutoff.setDate(cutoff.getDate() - (config.days - 1));
     cutoff.setHours(0, 0, 0, 0);
     return items.filter((item) => item.timestamp >= cutoff);
+  }
+
+  function formatDateTime(date: Date): string {
+    return date.toLocaleString(undefined, {
+      dateStyle: "medium",
+      timeStyle: "short",
+    });
+  }
+
+  function formatDateRange(start: Date, end: Date): string {
+    const format = (date: Date) =>
+      date.toLocaleDateString(undefined, {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      });
+    return start.toDateString() === end.toDateString()
+      ? format(start)
+      : `${format(start)} – ${format(end)}`;
+  }
+
+  function getWeightPeriodLabel(
+    entries: { timestamp: Date }[],
+    range: WeightRange
+  ): string {
+    if (entries.length > 0) {
+      return `${formatDateRange(entries[0].timestamp, entries[entries.length - 1].timestamp)} · ${entries.length} ${entries.length === 1 ? "entry" : "entries"}`;
+    }
+
+    const selectedRange = weightRanges.find((item) => item.key === range);
+    return selectedRange?.days ? `Last ${selectedRange.days} days` : "All recorded time";
+  }
+
+  function getGymPeriodLabel(dates: Record<string, string>): string {
+    const sortedDates = Object.keys(dates).sort();
+    if (sortedDates.length === 0) return "No tracked days yet";
+    return `${formatDateRange(new Date(`${sortedDates[0]}T00:00:00`), new Date(`${sortedDates[sortedDates.length - 1]}T00:00:00`))} · ${sortedDates.length} tracked ${sortedDates.length === 1 ? "day" : "days"}`;
   }
 
   function setWeightRange(range: WeightRange) {
@@ -535,11 +619,16 @@
     <!-- Charts Section -->
     <div class="grid grid-cols-1 gap-6">
       <div
-        class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700"
+        class="min-w-0 bg-white p-4 dark:bg-gray-800 sm:p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700"
         transition:fly={{ y: 20 }}
       >
         <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <h2 class="text-lg font-semibold dark:text-white">Weight Progress</h2>
+          <div>
+            <h2 class="text-lg font-semibold dark:text-white">Weight Progress</h2>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              {weightPeriodLabel}
+            </p>
+          </div>
           <div class="order-3 flex w-full gap-1 overflow-x-auto rounded-lg bg-gray-100 p-1 sm:order-2 sm:w-auto dark:bg-gray-700">
             {#each weightRanges as range (range.key)}
               <button
@@ -622,8 +711,8 @@
             </button>
           </div>
         </div>
-        <div class="relative h-64">
-          <canvas bind:this={weightCanvas}></canvas>
+        <div class="relative h-56 min-w-0 sm:h-64">
+          <canvas class="block h-full w-full touch-none" bind:this={weightCanvas}></canvas>
           {#if filteredWeights.length === 0}
             <div class="pointer-events-none absolute inset-0 flex items-center justify-center">
               <p class="text-sm text-gray-500 dark:text-gray-400">
@@ -635,14 +724,19 @@
       </div>
 
       <div
-        class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700"
+        class="min-w-0 bg-white p-4 dark:bg-gray-800 sm:p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700"
         transition:fly={{ y: 20, delay: 100 }}
       >
-        <div class="flex justify-between items-center mb-4">
-          <h2 class="text-lg font-semibold dark:text-white">Gym Attendance</h2>
+        <div class="mb-4 flex items-start justify-between">
+          <div>
+            <h2 class="text-lg font-semibold dark:text-white">Gym Attendance</h2>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              {gymPeriodLabel}
+            </p>
+          </div>
         </div>
-        <div class="h-64">
-          <canvas bind:this={gymCanvas}></canvas>
+        <div class="relative h-56 min-w-0 sm:h-64">
+          <canvas class="block h-full w-full touch-none" bind:this={gymCanvas}></canvas>
         </div>
       </div>
     </div>
