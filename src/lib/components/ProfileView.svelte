@@ -80,6 +80,7 @@
   }
 
   $: filteredWeightEntries = getFilteredWeights(weightEntries, weightRange);
+  $: weightPeriodLabel = getWeightPeriodLabel(filteredWeightEntries, weightRange);
   $: gymWeeks = buildGymWeeks(gymDates);
   $: recentGymDays = gymWeeks
     .flat()
@@ -222,6 +223,37 @@
     drawWeightChart();
   }
 
+  function formatDateTime(date: Date): string {
+    return date.toLocaleString(undefined, {
+      dateStyle: "medium",
+      timeStyle: "short",
+    });
+  }
+
+  function formatDateRange(start: Date, end: Date): string {
+    const format = (date: Date) =>
+      date.toLocaleDateString(undefined, {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      });
+    return start.toDateString() === end.toDateString()
+      ? format(start)
+      : `${format(start)} – ${format(end)}`;
+  }
+
+  function getWeightPeriodLabel(
+    entries: WeightEntry[],
+    range: WeightRange
+  ): string {
+    if (entries.length > 0) {
+      return `${formatDateRange(entries[0].timestamp, entries[entries.length - 1].timestamp)} · ${entries.length} ${entries.length === 1 ? "entry" : "entries"}`;
+    }
+
+    const selectedRange = weightRanges.find((item) => item.key === range);
+    return selectedRange?.days ? `Last ${selectedRange.days} days` : "All recorded time";
+  }
+
   async function drawWeightChart() {
     if (!browser || !weightCanvas) return;
 
@@ -233,19 +265,20 @@
     if (entries.length === 0) return;
 
     const unit = get(weightUnit);
+    await import("chartjs-adapter-date-fns");
     const { default: ChartJS } = await import("chart.js/auto");
     if (token !== chartDrawToken || !weightCanvas) return;
 
     weightChart = new ChartJS(weightCanvas, {
       type: "line",
       data: {
-        labels: entries.map((entry) => entry.timestamp.toLocaleDateString()),
         datasets: [
           {
             label: `Weight (${unit})`,
-            data: entries.map((entry) =>
-              unit === "lbs" ? entry.weight * 2.2046226218 : entry.weight
-            ),
+            data: entries.map((entry) => ({
+              x: entry.timestamp.getTime(),
+              y: unit === "lbs" ? entry.weight * 2.2046226218 : entry.weight,
+            })),
             borderColor: "#3b82f6",
             backgroundColor: "rgba(147, 197, 253, 0.35)",
             borderWidth: 2,
@@ -267,19 +300,47 @@
           legend: {
             display: false,
           },
+          tooltip: {
+            callbacks: {
+              title: (items) => {
+                const timestamp = items[0]?.parsed.x;
+                return typeof timestamp === "number"
+                  ? formatDateTime(new Date(timestamp))
+                  : "";
+              },
+            },
+          },
         },
         scales: {
           x: {
+            type: "time",
+            time: {
+              tooltipFormat: "MMM d, yyyy",
+              displayFormats: {
+                hour: "MMM d",
+                day: "MMM d",
+                week: "MMM d",
+                month: "MMM yyyy",
+              },
+            },
+            title: {
+              display: true,
+              text: "Date",
+            },
             ticks: {
               maxRotation: 0,
               autoSkip: true,
-              maxTicksLimit: 6,
+              maxTicksLimit: 7,
             },
             grid: {
               display: false,
             },
           },
           y: {
+            title: {
+              display: true,
+              text: `Weight (${unit})`,
+            },
             ticks: {
               callback: (value) => `${value}`,
             },
@@ -511,12 +572,17 @@
       </div>
 
       <div
-        class="mt-6 rounded-xl border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800"
+        class="mt-6 min-w-0 rounded-xl border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800 sm:p-5"
       >
         <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
-            Weight Progress
-          </h2>
+          <div>
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+              Weight Progress
+            </h2>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              {weightPeriodLabel}
+            </p>
+          </div>
           <div
             class="flex gap-1 overflow-x-auto rounded-lg bg-gray-100 p-1 dark:bg-gray-700"
           >
@@ -536,8 +602,8 @@
             {/each}
           </div>
         </div>
-        <div class="relative h-56 sm:h-64">
-          <canvas bind:this={weightCanvas}></canvas>
+        <div class="relative h-56 min-w-0 sm:h-64">
+          <canvas class="block h-full w-full touch-none" bind:this={weightCanvas}></canvas>
           {#if filteredWeightEntries.length === 0}
             <div
               class="pointer-events-none absolute inset-0 flex items-center justify-center"
